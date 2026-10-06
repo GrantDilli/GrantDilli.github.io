@@ -1,0 +1,444 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no">
+<title>Flux Weave · Infinite Games</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bungee&family=Rubik:wght@400;500&display=swap">
+<link rel="stylesheet" href="../../style.css">
+<style>
+  main{max-width:640px;margin:0 auto;padding-block:24px 40px;display:grid;gap:12px;justify-items:center;text-align:center}
+  h1{margin:0;font-family:var(--display);font-weight:400;color:var(--lime);font-size:2.4rem}
+  .bar{display:flex;flex-wrap:wrap;justify-content:space-between;gap:4px 12px;width:100%;color:var(--muted);font-variant-numeric:tabular-nums}
+  .bar b{color:var(--text)}
+  .scores{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;width:100%}
+  .chip{background:var(--panel);border:2px solid var(--line);border-radius:6px;padding:4px 6px;display:grid;gap:0;font-variant-numeric:tabular-nums;transition:border-color .2s,transform .2s}
+  .chip .n{font-size:.75rem;text-transform:uppercase;letter-spacing:.1em;color:var(--muted);display:flex;gap:5px;align-items:center;justify-content:center}
+  .chip .n i{width:10px;height:10px;border-radius:50%;display:inline-block}
+  .chip .s{font-family:var(--display);font-size:1.3rem;line-height:1.2}
+  .chip .k{font-size:.75rem;color:var(--muted)}
+  .chip .k{white-space:nowrap}
+  @media (max-width:480px){.chip .pp{display:none}.chip .s{font-size:1.1rem}}
+  .chip.lead{transform:translateY(-2px)}
+  .stage{position:relative;width:100%;user-select:none;-webkit-user-select:none}
+  canvas{display:block;background:#0b0a12;border:2px solid var(--line);border-radius:6px;width:100%;aspect-ratio:1/1;touch-action:none;cursor:pointer}
+  .msg{position:absolute;inset:0;display:none;place-content:center;gap:12px;background:rgba(11,10,18,.8);border-radius:6px;padding:16px}
+  .msg.on{display:grid}
+  .msg h2{margin:0;font-family:var(--display);font-weight:400;color:var(--lime);font-size:1.8rem}
+  .msg p{margin:0;color:var(--muted);max-width:44ch;justify-self:center}
+  .msg .stats{color:var(--text);font-variant-numeric:tabular-nums}
+  .msg table{border-collapse:collapse;justify-self:center;font-variant-numeric:tabular-nums;color:var(--text)}
+  .msg td,.msg th{padding:3px 10px;text-align:right}
+  .msg th{color:var(--muted);font-weight:400;font-size:.8rem;text-transform:uppercase;letter-spacing:.08em}
+  .msg td:nth-child(2){text-align:left}
+  .msg td i{width:10px;height:10px;border-radius:50%;display:inline-block;margin-right:6px}
+  button{background:var(--lime);color:var(--bg);border:0;border-radius:6px;padding:10px 20px;font:400 1rem var(--display);cursor:pointer}
+  button.ghost{background:var(--panel);color:var(--text);border:2px solid var(--line)}
+  .row{display:flex;flex-wrap:wrap;gap:8px;justify-content:center;align-items:center}
+  .skills button{padding:6px 12px}
+  .skills button.cur{background:var(--pink);color:var(--bg);border-color:var(--pink)}
+  .msg .small{justify-self:center}
+  .tip{color:var(--text);margin:0;min-height:1.5em}
+  .back{justify-self:start;color:var(--muted)}
+  .small{font-size:.85rem;color:var(--muted);margin:0;max-width:56ch}
+</style>
+</head>
+<body>
+<main>
+  <a class="back" href="../../index.html">← All games</a>
+  <h1>Flux Weave</h1>
+  <div class="bar"><span>System <b id="lvl">1</b>/5: <b id="lname"></b></span><span>Time <b id="time">60</b></span><span>Best on <b id="skillName">Normal</b>: <b id="best">–</b></span></div>
+  <div class="scores" id="scores"></div>
+  <div class="stage" id="stage">
+    <canvas id="c"></canvas>
+    <div class="msg" id="msg"><h2 id="mt"></h2><p id="mp"></p><div class="stats" id="ms"></div><div class="row" id="mbtns"></div></div>
+  </div>
+  <p class="tip" id="tip"></p>
+  <div class="row">
+    <button class="ghost" id="restart">Restart (R)</button>
+    <button class="ghost" id="pause">Pause (P)</button>
+    <button class="ghost" id="snd">Sound on (M)</button>
+  </div>
+  <div class="row"><span class="small">Rival skill</span><div class="row skills" id="skills"></div></div>
+  <p class="small">Click or tap a pipe to turn it clockwise, right-click to turn it back. Keys: arrows or WASD to move, Space to turn, X to turn back. A tile someone just turned is locked to everyone else for a moment.</p>
+</main>
+<script>
+const $=id=>document.getElementById(id);
+// ---- board geometry ----
+// Bits of a pipe mask: 1 up, 2 right, 4 down, 8 left. Turning clockwise shifts each bit left.
+const N=9,W=720,M=18,CELL=76,ROUND_TIME=60;
+const DX=[0,1,0,-1],DY=[-1,0,1,0];
+const COLORS=['#c6f432','#ff5c8a','#4cd9ff','#ffb347'];
+const NAMES=['You','Volt','Coil','Ohm'];
+const rotl=(m,r)=>((m<<r)|(m>>(4-r)))&15;
+const mask=t=>rotl(t.base,((t.rot%4)+4)%4);
+const rotatable=t=>t.kind==='pipe'&&t.base!==15;
+const hexA=(h,a)=>{const n=parseInt(h.slice(1),16);return`rgba(${n>>16},${n>>8&255},${n&255},${a})`};
+const mtof=m=>440*Math.pow(2,(m-69)/12);
+function rng(s){return()=>{s|=0;s=s+0x6D2B79F5|0;let t=Math.imul(s^s>>>15,1|s);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296}}
+
+// ---- the five systems: each has its own look, ambience, music and twist pace ----
+const THEMES=[
+{name:'Neon Foundry',bg:['#1b1236','#0a0717'],tile:'#241b42',tileHi:'#33295c',pipe:'#3d3366',accent:'#b48cff',amb:'spark',
+ bpm:104,root:57,scale:[0,3,7,10,12],prog:[0,-4,-2,-5],wave:'triangle',twist:18,tip:'Turn pipes to carry your green flux out to the cores. Each core you power scores every second.'},
+{name:'Tidewater Works',bg:['#06304d','#021220'],tile:'#0c3456',tileHi:'#15476f',pipe:'#1f5378',accent:'#5fd4ff',amb:'bubble',
+ bpm:96,root:55,scale:[0,2,7,9,12],prog:[0,5,-3,2],wave:'sine',twist:16,tip:'Flux that meets a rival at the same moment jams. Cut their lines to take their cores.'},
+{name:'Ember Kiln',bg:['#34110a','#120504'],tile:'#3d1b13',tileHi:'#552619',pipe:'#5f3124',accent:'#ff7a3d',amb:'ember',
+ bpm:112,root:52,scale:[0,3,5,7,10],prog:[0,-2,-4,-5],wave:'sawtooth',twist:14,tip:'The heart core in the middle is worth three. Everyone wants it.'},
+{name:'Aurora Relay',bg:['#062a24','#020c10'],tile:'#0d302b',tileHi:'#134139',pipe:'#1c4d45',accent:'#7dffcf',amb:'aurora',
+ bpm:100,root:60,scale:[0,4,7,11,14],prog:[0,-3,5,-5],wave:'triangle',twist:12,tip:'Watch the flashing band: a twist is about to turn that whole line.'},
+{name:'Void Core',bg:['#0e0c1c','#000000'],tile:'#17162c',tileHi:'#23223f',pipe:'#2c2b4b',accent:'#e9e4ff',amb:'star',
+ bpm:120,root:50,scale:[0,3,7,8,12],prog:[0,-4,-7,-5],wave:'square',twist:10,tip:'Final system. The rivals are at full speed.'},
+];
+// Rival skill shifts the per-system ramp: Easy starts gentler, Brutal starts where Normal ends.
+const SKILLS=[{name:'Easy',off:-3.5},{name:'Normal',off:0},{name:'Hard',off:2},{name:'Brutal',off:5.5}];
+let skill=1;try{const v=localStorage.getItem('fluxSkill');if(v!=null&&SKILLS[+v])skill=+v}catch(e){}
+const DIFF=r=>{const e=r+SKILLS[skill].off;return{think:Math.max(.12,1.1-e*.17),noise:Math.max(0,5-e*1.1),speed:Math.min(18,Math.max(3,6.5+e*1.3)),cost:.35}};
+
+// ---- sound: everything is synthesised with Web Audio, no files ----
+const SND={on:true,ctx:null};
+try{SND.on=localStorage.getItem('fluxSound')!=='off'}catch(e){}
+function audio(){
+  if(!SND.on)return null;
+  if(!SND.ctx){try{const C=window.AudioContext||window.webkitAudioContext,a=new C();SND.ctx=a;
+    SND.master=a.createGain();SND.master.gain.value=.55;SND.master.connect(a.destination);
+    const dl=a.createDelay(),fb=a.createGain(),lp=a.createBiquadFilter(); // short echo gives a roomy tail
+    dl.delayTime.value=.14;fb.gain.value=.24;lp.frequency.value=2400;
+    SND.master.connect(dl);dl.connect(lp);lp.connect(fb);fb.connect(dl);lp.connect(a.destination);
+    SND.music=a.createGain();SND.music.gain.value=.3;SND.music.connect(SND.master);
+    const b=a.createBuffer(1,a.sampleRate,a.sampleRate),d=b.getChannelData(0);for(let i=0;i<d.length;i++)d[i]=Math.random()*2-1;SND.nb=b;
+  }catch(e){SND.on=false;return null}}
+  if(SND.ctx.state==='suspended')SND.ctx.resume();
+  return SND.ctx}
+function out(a,pan,dest){const d=dest||SND.master;if(!pan||!a.createStereoPanner)return d;const p=a.createStereoPanner();p.pan.value=Math.max(-1,Math.min(1,pan));p.connect(d);return p}
+function tone(type,f0,f1,dur,vol,when=0,pan=0,dest,at){const a=audio();if(!a)return;
+  const t=at!=null?at:a.currentTime+when,o=a.createOscillator(),g=a.createGain();o.type=type;
+  o.frequency.setValueAtTime(f0,t);o.frequency.exponentialRampToValueAtTime(f1,t+dur);
+  g.gain.setValueAtTime(0,t);g.gain.linearRampToValueAtTime(vol,t+.006);g.gain.exponentialRampToValueAtTime(.0001,t+dur);
+  o.connect(g);g.connect(out(a,pan,dest));o.start(t);o.stop(t+dur+.02)}
+function noise(freq,q,dur,vol,when=0,type='bandpass',f1,pan=0,dest,at){const a=audio();if(!a)return;
+  const t=at!=null?at:a.currentTime+when,src=a.createBufferSource(),f=a.createBiquadFilter(),g=a.createGain();
+  src.buffer=SND.nb;f.type=type;f.frequency.setValueAtTime(freq,t);if(f1)f.frequency.exponentialRampToValueAtTime(f1,t+dur);f.Q.value=q;
+  g.gain.setValueAtTime(vol,t);g.gain.exponentialRampToValueAtTime(.0001,t+dur);
+  src.connect(f);f.connect(g);g.connect(out(a,pan,dest));src.start(t,Math.random()*.5);src.stop(t+dur+.02)}
+const panOf=x=>(x-(N-1)/2)/(N/2)*.7;
+const sfx={
+  turn(p,x,dir){const j=1+(Math.random()-.5)*.1,v=p===0?1:.3,pn=panOf(x);
+    noise(3200*j,2,.035,.22*v,0,'bandpass',0,pn);tone('triangle',(dir>0?820:620)*j,(dir>0?560:820)*j,.07,.14*v,0,pn);
+    if(p===0)tone('sine',180*j,90,.06,.18,0,pn)},
+  deny(){tone('square',150,120,.12,.06);tone('square',110,100,.12,.05,.05)},
+  link(n){const f=300*Math.pow(2,Math.min(n,36)/24);tone('sine',f,f*1.25,.09,.07);tone('triangle',f*2,f*2.4,.06,.025,.02)},
+  cut(){tone('sine',320,190,.14,.07)},
+  capture(val,x){const r=mtof(theme.root+24),pn=panOf(x);[0,4,7,12].forEach((s,i)=>tone('triangle',r*Math.pow(2,s/12),r*Math.pow(2,s/12),.3,.13,i*.055,pn));
+    noise(7000,1,.35,.05,.05,'highpass',0,pn);if(val>1)tone('sine',r/2,r/2,.6,.16,.05)},
+  rival(x){tone('sine',520,700,.12,.05,0,panOf(x))},
+  lost(x){const pn=panOf(x);tone('sawtooth',440,170,.38,.06,0,pn);tone('sine',220,90,.4,.12,0,pn);noise(900,1,.3,.06,0,'lowpass',200,pn)},
+  warn(){tone('sine',220,880,1.3,.05);for(let i=0;i<4;i++)tone('square',1400,1400,.03,.03,i*.35)},
+  twist(){noise(400,1.2,.5,.3,0,'bandpass',2600);tone('sine',130,48,.4,.35);tone('triangle',900,300,.3,.05,.05)},
+  beep(go){if(go){tone('triangle',880,880,.4,.15);tone('triangle',1318.5,1318.5,.45,.1);tone('sine',110,55,.3,.3)}else tone('square',660,660,.09,.07)},
+  tick(){tone('sine',1500,1500,.03,.04)},
+  end(win){const r=mtof(theme.root+12);const steps=win?[0,4,7,12,16]:[7,3,0,-5];
+    steps.forEach((s,i)=>tone('triangle',r*Math.pow(2,s/12),r*Math.pow(2,s/12),.45,.16,i*.11));if(win)noise(8000,1,.6,.05,.4,'highpass')},
+};
+function setSound(on,init){SND.on=on;try{localStorage.setItem('fluxSound',on?'on':'off')}catch(e){}
+  $('snd').textContent=on?'Sound on (M)':'Sound off (M)';if(on&&!init)audio()}
+// music: a soft arpeggio and pulse on a look-ahead clock, quieter than the effects
+const ARP=[0,2,1,3,2,4,3,1];const mus={on:false,next:0,step:0};
+function musicTick(){const a=SND.ctx;if(!a||!SND.on||!mus.on||a.state!=='running')return;
+  const spb=60/theme.bpm/2;if(mus.next<a.currentTime)mus.next=a.currentTime+.05;
+  const late=state==='play'&&timeLeft<15;
+  while(mus.next<a.currentTime+.15){const s=mus.step,t=mus.next,base=theme.root+theme.prog[Math.floor(s/16)%4];
+    if(s%2===0)tone('sine',120,42,.16,s%4===0?.5:.25,0,0,SND.music,t);
+    if(late&&s%2===1)noise(9000,1,.03,.12,0,'highpass',0,0,SND.music,t);
+    tone(theme.wave,mtof(base+12+theme.scale[ARP[s%8]]),mtof(base+12+theme.scale[ARP[s%8]]),spb*.9,theme.wave==='sine'||theme.wave==='triangle'?.12:.04,0,(s%2?.3:-.3),SND.music,t);
+    if(s%16===0)tone('sine',mtof(base-12),mtof(base-12),spb*7,.16,0,0,SND.music,t);
+    mus.next+=spb;mus.step++}}
+setInterval(musicTick,30);
+
+// ---- game state ----
+const cv=$('c'),cx=cv.getContext('2d');let dpr=1;
+function resize(){dpr=Math.min(2,window.devicePixelRatio||1);cv.width=W*dpr;cv.height=W*dpr}
+resize();addEventListener('resize',resize);
+let T=[],NODES=[],theme=THEMES[0],round=0,state='menu',clock=0,timeLeft=ROUND_TIME,countT=0,lastCount=0;
+let scores=[0,0,0,0],pts=[0,0,0,0],fx=[],amb=[],cpus=[],twist=null,nextTwist=0,flash=0,shake=0;
+const cur={x:0,y:0,vx:0,vy:0,seen:false};
+let best=0;
+function loadBest(){best=0;try{best=+localStorage.getItem('fluxBest'+(skill===1?'':'_'+skill))||0}catch(e){}
+  $('best').textContent=best?best+' pts':'–';$('skillName').textContent=SKILLS[skill].name}
+function renderSkills(el){el.innerHTML='';SKILLS.forEach((k,i)=>{const b=document.createElement('button');b.className='ghost'+(i===skill?' cur':'');b.textContent=k.name;
+  b.setAttribute('aria-pressed',i===skill);b.onclick=()=>{audio();setSkill(i)};el.appendChild(b)})}
+function setSkill(i){skill=i;try{localStorage.setItem('fluxSkill',i)}catch(e){}loadBest();
+  document.querySelectorAll('.skills').forEach(renderSkills);sfx.beep(false)}
+
+function newTile(){return{kind:'pipe',base:5,rot:0,ang:0,val:0,src:-1,lockBy:-1,lockUntil:0,own:-1,disp:-1,prev:-1,fill:1,pendAt:0,dist:0,from:-1,pop:0}}
+// Every board has four-way turn symmetry, so each corner faces exactly the same puzzle.
+function gen(seed){
+  const R=rng(seed);T=new Array(N*N).fill(null);
+  const put=(x,y,t)=>{for(let k=0;k<4;k++){const i=y*N+x;
+    if(!T[i])T[i]=Object.assign(newTile(),t,{rot:t.rot+k,ang:t.rot+k,src:t.kind==='src'?k:-1});
+    [x,y]=[N-1-y,x]}};
+  put(0,0,{kind:'src',base:3,rot:1});
+  put(4,4,{kind:'node',base:15,rot:0,val:3});
+  put(2,2,{kind:'node',base:15,rot:0,val:1});
+  put(4,1,{kind:'node',base:15,rot:0,val:1});
+  for(let y=0;y<N;y++)for(let x=0;x<N;x++)if(!T[y*N+x]){const r=R();
+    put(x,y,{kind:'pipe',base:r<.32?5:r<.75?3:r<.95?7:15,rot:Math.floor(R()*4)})}
+  T.forEach(t=>{if(t.kind==='node'){t.rot=0;t.ang=0}});
+  NODES=[];T.forEach((t,i)=>{if(t.kind==='node')NODES.push(i)});
+}
+// Flux spreads one tile per step from every source at once; two colours reaching a tile on
+// the same step jam it (own -2), and a jammed or claimed tile blocks everyone else.
+function flowCalc(){
+  const own=new Int8Array(N*N).fill(-1),dist=new Int16Array(N*N).fill(-1),from=new Int8Array(N*N).fill(-1),mk=new Uint8Array(N*N);
+  for(let i=0;i<N*N;i++)mk[i]=mask(T[i]);
+  let fr=[];T.forEach((t,i)=>{if(t.kind==='src'){own[i]=t.src;dist[i]=0;fr.push(i)}});
+  let layer=0;
+  while(fr.length){layer++;const claims=new Map();
+    for(const a of fr){const m=mk[a],ax=a%N,ay=(a-ax)/N;
+      for(let d=0;d<4;d++){if(!(m&1<<d))continue;const bx=ax+DX[d],by=ay+DY[d];
+        if(bx<0||by<0||bx>=N||by>=N)continue;const b=by*N+bx;
+        if(own[b]!==-1||!(mk[b]&1<<((d+2)%4)))continue;
+        const c=claims.get(b);if(!c)claims.set(b,{p:own[a],f:(d+2)%4});else if(c.p!==own[a])c.p=-2}}
+    fr=[];for(const[b,c]of claims){own[b]=c.p;dist[b]=layer;from[b]=c.f;if(c.p>=0)fr.push(b)}}
+  return{own,dist,from}}
+function recalc(){
+  const f=flowCalc();let before=0,after=0;
+  for(let i=0;i<N*N;i++){const t=T[i];if(t.own===0)before++;
+    if(f.own[i]!==t.own){t.own=f.own[i];t.pendAt=clock+Math.max(0,f.dist[i])*.03}
+    t.dist=f.dist[i];t.from=f.from[i];if(t.own===0)after++}
+  if(state==='play'){if(after>before)sfx.link(after);else if(after<before)sfx.cut()}
+}
+function turn(i,dir,p){const t=T[i];if(!rotatable(t))return false;
+  if(t.lockBy!==p&&t.lockUntil>clock){if(p===0){sfx.deny();t.pop=-.6}return false}
+  t.rot+=dir;t.lockBy=p;t.lockUntil=clock+.6;t.pop=1;sfx.turn(p,i%N,dir);recalc();return true}
+
+// ---- rivals: each picks the turn that best improves its network, then walks its cursor there ----
+function evalFor(p,own){
+  let nodes=0,tiles=0;const opp=[0,0,0,0],mine=[];
+  for(let i=0;i<N*N;i++){const o=own[i];if(o===p){tiles++;mine.push(i)}
+    if(o>=0&&T[i].kind==='node'){if(o===p)nodes+=T[i].val;else opp[o]+=T[i].val}}
+  let s=nodes*10+tiles*.35-Math.max(...opp)*2.5;
+  for(const ni of NODES){if(own[ni]===p)continue;const nx=ni%N,ny=(ni-nx)/N;let md=99;
+    for(const i of mine){const x=i%N,d=Math.abs(x-nx)+Math.abs((i-x)/N-ny);if(d<md)md=d}
+    s+=T[ni].val*2.2/(1+md)}
+  return s}
+function plan(c){
+  const d=DIFF(round),R=Math.random,base=flowCalc().own,cur0=evalFor(c.p,base);
+  let best=null,bs=cur0+.3;
+  for(let i=0;i<N*N;i++){const t=T[i];if(!rotatable(t)||(t.lockBy!==c.p&&t.lockUntil>clock))continue;
+    const x=i%N,y=(i-x)/N;let near=false;
+    for(let k=-1;k<4;k++){const bx=k<0?x:x+DX[k],by=k<0?y:y+DY[k];if(bx>=0&&by>=0&&bx<N&&by<N&&base[by*N+bx]>=0){near=true;break}}
+    if(!near)continue;
+    const r0=t.rot,seen=new Set([mask(t)]),travel=Math.hypot(x-c.x,y-c.y);
+    for(let k=1;k<=3;k++){t.rot=r0+k;const m=mask(t);if(seen.has(m))continue;seen.add(m);
+      const s=evalFor(c.p,flowCalc().own)-travel*d.cost-(k===2?.4:0)+R()*d.noise;
+      if(s>bs){bs=s;best={i,k}}}
+    t.rot=r0}
+  return best}
+function updateCpu(c,dt){const d=DIFF(round);
+  if(c.state==='think'){c.timer-=dt;if(c.timer<=0){const b=plan(c);
+      if(b){c.target=b.i;c.steps=b.k===3?1:b.k;c.dir=b.k===3?-1:1;c.state='move'}else c.timer=.35}}
+  else if(c.state==='move'){const tx=c.target%N,ty=(c.target-tx)/N,dx=tx-c.x,dy=ty-c.y,l=Math.hypot(dx,dy),st=d.speed*dt;
+    if(l<=st){c.x=tx;c.y=ty;c.state='act';c.timer=.07}else{c.x+=dx/l*st;c.y+=dy/l*st}}
+  else if(c.state==='act'){c.timer-=dt;if(c.timer<=0){
+      if(turn(c.target,c.dir,c.p)){c.steps--;c.bump=1;if(c.steps>0){c.timer=.17;return}}
+      c.state='think';c.timer=d.think*(.7+Math.random()*.6)}}
+}
+
+// ---- flow of a round ----
+function startMatch(){pts=[0,0,0,0];round=0;startRound()}
+function startRound(){
+  theme=THEMES[round];gen((Math.random()*1e9)|0);clock=0;timeLeft=ROUND_TIME;scores=[0,0,0,0];fx=[];twist=null;
+  nextTwist=theme.twist;cur.x=1;cur.y=1;flash=0;
+  T.forEach(t=>{t.own=-1;t.disp=-1;t.fill=1});recalc();
+  T.forEach(t=>{t.disp=t.own;t.fill=1});
+  cpus=[1,2,3].map(p=>{const s=SRC_POS[p];return{p,x:s[0],y:s[1],state:'think',timer:.3+Math.random()*.4,target:0,steps:0,dir:1,bump:0}});
+  initAmb();$('lvl').textContent=round+1;$('lname').textContent=theme.name;$('tip').textContent=theme.tip;
+  state='count';countT=3.2;lastCount=4;hideMsg();mus.on=true;audio();buildChips();
+}
+const SRC_POS=[[0,0],[8,0],[8,8],[0,8]];
+function endRound(){
+  state='end';mus.on=false;
+  const order=[0,1,2,3].sort((a,b)=>scores[b]-scores[a]||(a-b));const award=[3,2,1,0];
+  order.forEach((p,k)=>pts[p]+=award[k]);
+  const place=order.indexOf(0);sfx.end(place===0);
+  const ord=['1st','2nd','3rd','4th'];
+  let tb='<table><tr><th></th><th></th><th>Flux</th><th>+</th><th>Total</th></tr>'+order.map((p,k)=>
+    `<tr><td>${ord[k]}</td><td><i style="background:${COLORS[p]}"></i>${NAMES[p]}</td><td>${Math.floor(scores[p])}</td><td>+${award[k]}</td><td><b>${pts[p]}</b></td></tr>`).join('')+'</table>';
+  if(round<4){showMsg(place===0?'System won':'You placed '+ord[place],`${theme.name} is done. Next up: ${THEMES[round+1].name}.`,tb,
+      [{label:'Next system',fn:()=>{round++;startRound()}}]);}
+  else{const fin=[0,1,2,3].sort((a,b)=>pts[b]-pts[a]||scores[b]-scores[a]),fp=fin.indexOf(0);
+    const rec=pts[0]>best;if(rec){best=pts[0];try{localStorage.setItem('fluxBest'+(skill===1?'':'_'+skill),best)}catch(e){}$('best').textContent=best+' pts'}
+    const ft='<table><tr><th></th><th></th><th>Points</th></tr>'+fin.map((p,k)=>`<tr><td>${ord[k]}</td><td><i style="background:${COLORS[p]}"></i>${NAMES[p]}</td><td><b>${pts[p]}</b></td></tr>`).join('')+'</table>';
+    setTimeout(()=>sfx.end(fp===0),600);
+    showMsg(fp===0?'Grid champion':'Match over: '+ord[fp],`You scored ${pts[0]} points across five systems on ${SKILLS[skill].name}.`+(rec?' That is your best yet.':''),ft,
+      [{label:'Play again',fn:startMatch},{label:'Change skill',ghost:true,fn:menu}])}
+}
+function showMsg(t,p,s,btns){$('mt').textContent=t;$('mp').textContent=p;$('ms').innerHTML=s||'';const b=$('mbtns');b.innerHTML='';
+  btns.forEach(o=>{const e=document.createElement('button');e.textContent=o.label;if(o.ghost)e.className='ghost';e.onclick=()=>{audio();o.fn()};b.appendChild(e)});
+  b.parentNode.querySelectorAll('.skills').forEach(renderSkills);$('msg').classList.add('on');setTimeout(()=>{const f=b.querySelector('button');f&&f.focus()},30)}
+function hideMsg(){$('msg').classList.remove('on')}
+function setPause(on){if(on&&(state==='play'||state==='count')){state='pause:'+state;mus.on=false;
+    showMsg('Paused','The flux is holding still.','',[{label:'Resume',fn:()=>setPause(false)},{label:'Restart match',ghost:true,fn:startMatch}])}
+  else if(!on&&state.startsWith('pause:')){state=state.slice(6);mus.on=true;hideMsg()}}
+function menu(){state='menu';theme=THEMES[0];gen(7);recalc();T.forEach(t=>{t.disp=t.own;t.fill=1});cpus=[];initAmb();
+  $('lvl').textContent=1;$('lname').textContent=theme.name;buildChips();
+  showMsg('Flux Weave','Three rival engineers share your grid. Turn pipes to carry your flux to the cores, cut their lines, and hold the most cores when the clock runs out. Five systems, 60 seconds each.','<p class="small">Rival skill</p><div class="row skills"></div>',
+    [{label:'Start match',fn:startMatch}])}
+
+// ---- score chips ----
+function buildChips(){$('scores').innerHTML=[0,1,2,3].map(p=>`<div class="chip" id="ch${p}"><span class="n"><i style="background:${COLORS[p]}"></i>${NAMES[p]}</span><span class="s" id="sc${p}">0</span><span class="k" id="nk${p}">0 cores</span></div>`).join('')}
+let chipT=0;
+function updateChips(){const lead=Math.max(...scores);
+  for(let p=0;p<4;p++){let n=0;NODES.forEach(i=>{if(T[i].own===p)n+=T[i].val});
+    $('sc'+p).textContent=Math.floor(scores[p]);$('nk'+p).innerHTML=n+(n===1?' core':' cores')+'<span class="pp"> · '+pts[p]+' pts</span>';
+    const ch=$('ch'+p),l=lead>0&&scores[p]===lead;ch.classList.toggle('lead',l);ch.style.borderColor=l?COLORS[p]:''}
+  $('time').textContent=Math.ceil(timeLeft)}
+
+// ---- ambience ----
+function initAmb(){amb=[];for(let i=0;i<46;i++)amb.push(spawnAmb(true))}
+function spawnAmb(any){const R=Math.random;return{x:R()*W,y:any?R()*W:W+10,v:10+R()*30,r:1+R()*3,ph:R()*6.28,l:R()}}
+
+function update(dt){
+  // tiles ease toward their turn and fade their colour as the flux arrives
+  for(const t of T){t.ang+=(t.rot-t.ang)*Math.min(1,dt*16);if(Math.abs(t.rot-t.ang)<.002)t.ang=t.rot;
+    t.pop*=Math.pow(.004,dt);
+    if(t.disp!==t.own&&clock>=t.pendAt){
+      if(t.kind==='node'&&state==='play'){const i=T.indexOf(t),x=i%N;
+        if(t.own>=0){burst(i,COLORS[t.own],t.val>1?40:24);t.ring=1;if(t.own===0)sfx.capture(t.val,x);else if(t.disp===0)sfx.lost(x);else sfx.rival(x);
+          if(t.own===0)flash=.5}
+        else if(t.disp===0)sfx.lost(x)}
+      t.prev=t.disp;t.disp=t.own;t.fill=0}
+    if(t.fill<1)t.fill=Math.min(1,t.fill+dt*7);if(t.ring)t.ring=Math.max(0,t.ring-dt*1.6)}
+  for(const a of amb){a.ph+=dt;
+    if(theme.amb==='star'){a.x-=a.v*.15*dt;if(a.x<-5)a.x=W+5}
+    else{a.y-=a.v*dt*(theme.amb==='ember'?1.4:theme.amb==='aurora'?.3:1);a.x+=Math.sin(a.ph*1.3)*dt*(theme.amb==='bubble'?14:6);
+      if(a.y<-10)Object.assign(a,spawnAmb(false))}}
+  for(const f of fx){f.t+=dt;f.x+=f.vx*dt;f.y+=f.vy*dt;f.vx*=.92;f.vy*=.92}fx=fx.filter(f=>f.t<f.life);
+  flash=Math.max(0,flash-dt*2);shake=Math.max(0,shake-dt*3);
+  for(const c of cpus)c.bump=Math.max(0,(c.bump||0)-dt*5);
+  if(state==='count'){const before=Math.ceil(countT);countT-=dt;const now=Math.ceil(countT);
+    if(now!==before&&now>0)sfx.beep(false);if(countT<=0){state='play';sfx.beep(true)}}
+  else if(state==='play'){clock+=dt;
+    const prevT=Math.ceil(timeLeft);timeLeft-=dt;
+    if(timeLeft<=10&&Math.ceil(timeLeft)!==prevT&&timeLeft>0)sfx.tick();
+    for(const i of NODES){const o=T[i].own;if(o>=0)scores[o]+=T[i].val*dt}
+    for(const c of cpus)updateCpu(c,dt);
+    if(!twist&&clock>=nextTwist-1.6&&timeLeft>3){twist={row:Math.random()<.5,i:1+Math.floor(Math.random()*7),at:nextTwist};sfx.warn()}
+    if(twist&&clock>=twist.at){for(let k=0;k<N;k++){const i=twist.row?twist.i*N+k:k*N+twist.i,t=T[i];if(rotatable(t)){t.rot++;t.pop=1}}
+      const s=twist;twist=null;recalc();sfx.twist();shake=1;
+      for(let k=0;k<N;k++){const x=s.row?k:s.i,y=s.row?s.i:k;for(let j=0;j<3;j++)fx.push(spark(M+x*CELL+CELL/2,M+y*CELL+CELL/2,theme.accent))}
+      nextTwist+=theme.twist}
+    if(timeLeft<=0){timeLeft=0;endRound()}}
+  chipT-=dt;if(chipT<=0){chipT=.1;updateChips()}
+}
+function spark(x,y,col){const a=Math.random()*6.28,s=40+Math.random()*220;return{x,y,vx:Math.cos(a)*s,vy:Math.sin(a)*s,t:0,life:.4+Math.random()*.5,col,r:1.5+Math.random()*2.5}}
+function burst(i,col,n){const x=M+(i%N)*CELL+CELL/2,y=M+Math.floor(i/N)*CELL+CELL/2;for(let k=0;k<n;k++)fx.push(spark(x,y,col))}
+
+// ---- drawing ----
+function rr(x,y,w,h,r){cx.beginPath();cx.moveTo(x+r,y);cx.arcTo(x+w,y,x+w,y+h,r);cx.arcTo(x+w,y+h,x,y+h,r);cx.arcTo(x,y+h,x,y,r);cx.arcTo(x,y,x+w,y,r);cx.closePath()}
+function arms(t,draw){const h=CELL/2;for(let d=0;d<4;d++)if(t.base&1<<d)draw(d,DX[d]*h,DY[d]*h)}
+function drawTile(t,i,time){
+  const x=i%N,y=(i-x)/N,px=M+x*CELL+CELL/2,py=M+y*CELL+CELL/2,h=CELL/2;
+  cx.save();cx.translate(px,py);
+  const sc=1+Math.max(0,t.pop)*.08-Math.max(0,-t.pop)*.06+(t.ring||0)*.06;cx.scale(sc,sc);
+  if(t.pop<0)cx.translate(Math.sin(time*80)*4*-t.pop,0);
+  cx.globalAlpha=.86;cx.fillStyle=(i===cur.y*N+cur.x&&state!=='menu')?theme.tileHi:theme.tile;rr(-h+3,-h+3,CELL-6,CELL-6,9);cx.fill();cx.globalAlpha=1;
+  if(t.lockUntil>clock&&t.lockBy>=0){cx.strokeStyle=hexA(COLORS[t.lockBy],.6*(t.lockUntil-clock)/.6);cx.lineWidth=3;cx.stroke()}
+  cx.rotate(t.ang*Math.PI/2);
+  const rot=((t.rot%4)+4)%4;
+  cx.lineCap='butt';
+  // the pipe itself
+  cx.strokeStyle=theme.pipe;cx.lineWidth=18;cx.beginPath();arms(t,(d,ex,ey)=>{cx.moveTo(0,0);cx.lineTo(ex,ey)});cx.stroke();
+  cx.fillStyle=theme.pipe;cx.beginPath();cx.arc(0,0,9,0,7);cx.fill();
+  // flux inside it, cross-fading from the old owner to the new one
+  const layer=(o,a)=>{if(o<0||a<=0.01)return;const col=COLORS[o];cx.globalAlpha=a;
+    cx.strokeStyle=hexA(col,.25);cx.lineWidth=20;cx.beginPath();arms(t,(d,ex,ey)=>{cx.moveTo(0,0);cx.lineTo(ex,ey)});cx.stroke();
+    cx.strokeStyle=col;cx.lineWidth=9;cx.beginPath();arms(t,(d,ex,ey)=>{cx.moveTo(0,0);cx.lineTo(ex,ey)});cx.stroke();
+    cx.fillStyle=col;cx.beginPath();cx.arc(0,0,5.5,0,7);cx.fill();
+    // bright dashes run outward from the source
+    if(o===t.own&&t.dist>=0){const v=time*70,entry=t.kind==='src'?-1:((t.from-rot)%4+4)%4;
+      cx.strokeStyle='rgba(255,255,255,.7)';cx.lineWidth=3;cx.setLineDash([7,15]);
+      arms(t,(d,ex,ey)=>{cx.beginPath();if(d===entry){cx.lineDashOffset=(t.dist-.5)*CELL-v;cx.moveTo(ex,ey);cx.lineTo(0,0)}
+        else{cx.lineDashOffset=t.dist*CELL-v;cx.moveTo(0,0);cx.lineTo(ex,ey)}cx.stroke()});cx.setLineDash([])}
+    cx.globalAlpha=1};
+  if(t.fill<1)layer(t.prev,1-t.fill);layer(t.disp,t.fill);
+  if(t.own===-2&&t.disp===-2){cx.strokeStyle='rgba(255,255,255,.8)';cx.lineWidth=2;cx.beginPath();
+    for(let k=0;k<3;k++){let a=Math.random()*6.28,r=4;cx.moveTo(Math.cos(a)*r,Math.sin(a)*r);
+      for(let s=0;s<3;s++){r+=6;a+=(Math.random()-.5)*1.2;cx.lineTo(Math.cos(a)*r,Math.sin(a)*r)}}cx.stroke()}
+  cx.rotate(-t.ang*Math.PI/2);
+  if(t.kind==='node'){const o=t.disp,col=o>=0?COLORS[o]:'#8c88a8',r=t.val>1?22:17,pul=Math.sin(time*4+i)*.5+.5;
+    cx.fillStyle=theme.tile;cx.beginPath();for(let k=0;k<6;k++){const a=k*Math.PI/3+Math.PI/6;cx.lineTo(Math.cos(a)*r,Math.sin(a)*r)}cx.closePath();cx.fill();
+    cx.strokeStyle=col;cx.lineWidth=3;cx.stroke();
+    cx.fillStyle=o>=0?hexA(col,.55+pul*.45):'rgba(140,136,168,.25)';cx.beginPath();cx.arc(0,0,r*.5,0,7);cx.fill();
+    if(t.val>1){cx.fillStyle=o>=0?'#111':'#cfcbe6';cx.font='400 13px Bungee,Impact,sans-serif';cx.textAlign='center';cx.textBaseline='middle';cx.fillText('×3',0,1)}
+    if(t.ring){cx.strokeStyle=hexA(col,t.ring);cx.lineWidth=4;cx.beginPath();cx.arc(0,0,r+(1-t.ring)*30,0,7);cx.stroke()}}
+  if(t.kind==='src'){const col=COLORS[t.src],pul=Math.sin(time*5)*.5+.5;
+    cx.fillStyle=hexA(col,.25);cx.beginPath();cx.arc(0,0,22+pul*4,0,7);cx.fill();
+    cx.fillStyle=col;cx.beginPath();cx.arc(0,0,15,0,7);cx.fill();
+    cx.fillStyle='rgba(0,0,0,.55)';cx.beginPath();cx.arc(0,0,6,0,7);cx.fill()}
+  cx.restore()}
+function drawAmb(time){
+  for(const a of amb){
+    if(theme.amb==='spark'){cx.fillStyle=hexA(theme.accent,.25+a.l*.4);cx.fillRect(a.x,a.y,a.r*.8,a.r*4)}
+    else if(theme.amb==='bubble'){cx.strokeStyle=hexA(theme.accent,.18+a.l*.25);cx.lineWidth=1.2;cx.beginPath();cx.arc(a.x,a.y,a.r*2.2,0,7);cx.stroke()}
+    else if(theme.amb==='ember'){cx.fillStyle=hexA(a.l>.5?'#ffb05a':'#ff5a2a',(.3+.5*Math.abs(Math.sin(a.ph*3)))*.8);cx.beginPath();cx.arc(a.x,a.y,a.r*.9,0,7);cx.fill()}
+    else if(theme.amb==='star'){cx.fillStyle=`rgba(255,255,255,${.15+.6*Math.abs(Math.sin(a.ph*(1+a.l)))})`;cx.fillRect(a.x,a.y,a.r*.7,a.r*.7)}
+    else if(theme.amb==='aurora'){cx.fillStyle=hexA(theme.accent,.12+a.l*.2);cx.beginPath();cx.arc(a.x,a.y,a.r*.7,0,7);cx.fill()}}
+  if(theme.amb==='aurora'){for(let b=0;b<3;b++){cx.strokeStyle=hexA(b===1?'#b48cff':theme.accent,.07);cx.lineWidth=60;cx.beginPath();
+    for(let x=0;x<=W;x+=24)cx.lineTo(x,160+b*190+Math.sin(x*.008+time*.5+b*2)*50);cx.stroke()}}}
+function draw(time){
+  cx.setTransform(dpr,0,0,dpr,0,0);
+  const g=cx.createRadialGradient(W/2,W/2,60,W/2,W/2,W*.75);g.addColorStop(0,theme.bg[0]);g.addColorStop(1,theme.bg[1]);
+  cx.fillStyle=g;cx.fillRect(0,0,W,W);drawAmb(time);
+  if(shake>0)cx.translate((Math.random()-.5)*6*shake,(Math.random()-.5)*6*shake);
+  if(twist){const p=Math.sin(time*18)*.5+.5,x=twist.row?M:M+twist.i*CELL,y=twist.row?M+twist.i*CELL:M,w=twist.row?N*CELL:CELL,hh=twist.row?CELL:N*CELL;
+    cx.fillStyle=hexA(theme.accent,.15+p*.25);rr(x-2,y-2,w+4,hh+4,10);cx.fill();}
+  T.forEach((t,i)=>drawTile(t,i,time));
+  if(twist){const left=Math.max(0,twist.at-clock);cx.fillStyle=hexA(theme.accent,.9);cx.font='400 22px Bungee,Impact,sans-serif';cx.textAlign='center';cx.textBaseline='middle';
+    for(const k of[0,N-1]){const x=twist.row?M+k*CELL+CELL/2:M+twist.i*CELL+CELL/2,y=twist.row?M+twist.i*CELL+CELL/2:M+k*CELL+CELL/2;cx.globalAlpha=.6+.4*Math.sin(time*12);const a0=time*4;cx.strokeStyle=cx.fillStyle;cx.lineWidth=4;cx.beginPath();cx.arc(x,y,20,a0,a0+4.4);cx.stroke();const ea=a0+4.4,hx=x+Math.cos(ea)*20,hy=y+Math.sin(ea)*20;cx.beginPath();cx.moveTo(hx+Math.cos(ea)*7,hy+Math.sin(ea)*7);cx.lineTo(hx-Math.cos(ea)*7,hy-Math.sin(ea)*7);cx.lineTo(hx+Math.cos(ea+1.57)*9,hy+Math.sin(ea+1.57)*9);cx.closePath();cx.fill()}
+    cx.globalAlpha=1;cx.font='400 14px Bungee,Impact,sans-serif';const lx=twist.row?W/2:M+twist.i*CELL+CELL/2,ly=twist.row?M+twist.i*CELL-8:10;cx.fillText('TWIST '+left.toFixed(1),lx,twist.row&&twist.i===0?M+CELL+8:ly+(twist.row?0:0))}
+  for(const f of fx){const k=1-f.t/f.life;cx.fillStyle=hexA(f.col,k);cx.beginPath();cx.arc(f.x,f.y,f.r*k+.5,0,7);cx.fill()}
+  // rival cursors glide around the grid
+  for(const c of cpus){const px=M+c.x*CELL+CELL/2,py=M+c.y*CELL+CELL/2,s=CELL/2-1+c.bump*4;
+    cx.strokeStyle=hexA(COLORS[c.p],.85);cx.lineWidth=3;rr(px-s,py-s,s*2,s*2,10);cx.stroke();
+    cx.fillStyle=COLORS[c.p];cx.font='400 11px Bungee,Impact,sans-serif';cx.textAlign='left';cx.textBaseline='top';cx.fillText(NAMES[c.p],px-s+4,py-s+3)}
+  if(state!=='menu'){const px=M+cur.x*CELL+CELL/2,py=M+cur.y*CELL+CELL/2,s=CELL/2+1,k=10+Math.sin(time*6)*2;
+    cx.strokeStyle=COLORS[0];cx.lineWidth=4;cx.beginPath();
+    for(const[sx,sy]of[[-1,-1],[1,-1],[1,1],[-1,1]]){cx.moveTo(px+sx*s,py+sy*(s-k));cx.lineTo(px+sx*s,py+sy*s);cx.lineTo(px+sx*(s-k),py+sy*s)}cx.stroke()}
+  if(flash>0){cx.fillStyle=hexA(COLORS[0],flash*.12);cx.fillRect(-10,-10,W+20,W+20)}
+  if(state==='count'||(state==='play'&&clock<.6)){const n=Math.ceil(countT);cx.fillStyle=hexA(COLORS[0],state==='play'?1-clock/.6:1);
+    cx.font='400 110px Bungee,Impact,sans-serif';cx.textAlign='center';cx.textBaseline='middle';cx.fillText(state==='play'?'GO':n,W/2,W/2);
+    if(state==='count'){cx.font='400 22px Bungee,Impact,sans-serif';cx.fillStyle=theme.accent;cx.fillText(theme.name.toUpperCase(),W/2,W/2+86)}}
+  if(state==='play'&&timeLeft<=10&&timeLeft>0){cx.fillStyle=hexA('#ffffff',.08+.08*Math.sin(time*10));cx.font='400 160px Bungee,Impact,sans-serif';cx.textAlign='center';cx.textBaseline='middle';cx.fillText(Math.ceil(timeLeft),W/2,W/2)}
+}
+let last=performance.now();
+function frame(now){const dt=Math.min(.05,(now-last)/1000);last=now;if(!state.startsWith('pause'))update(dt);draw(now/1000);requestAnimationFrame(frame)}
+
+// ---- input ----
+function cellAt(e){const r=cv.getBoundingClientRect(),x=(e.clientX-r.left)/r.width*W,y=(e.clientY-r.top)/r.height*W;
+  const gx=Math.floor((x-M)/CELL),gy=Math.floor((y-M)/CELL);return gx>=0&&gy>=0&&gx<N&&gy<N?[gx,gy]:null}
+function act(dir){if(state!=='play')return;turn(cur.y*N+cur.x,dir,0)}
+cv.addEventListener('pointermove',e=>{if(e.pointerType!=='mouse')return;const c=cellAt(e);if(c){cur.x=c[0];cur.y=c[1]}});
+cv.addEventListener('pointerdown',e=>{audio();const c=cellAt(e);if(!c)return;cur.x=c[0];cur.y=c[1];act(e.button===2?-1:1);e.preventDefault()});
+cv.addEventListener('contextmenu',e=>e.preventDefault());
+addEventListener('keydown',e=>{const k=e.key.toLowerCase();
+  if(k==='m'){setSound(!SND.on);return}
+  if(k==='r'){startMatch();return}
+  if(k==='p'||k==='escape'){setPause(!state.startsWith('pause'));return}
+  if(state!=='play'&&state!=='count')return;
+  const mv={arrowup:[0,-1],w:[0,-1],arrowdown:[0,1],s:[0,1],arrowleft:[-1,0],a:[-1,0],arrowright:[1,0],d:[1,0]}[k];
+  if(mv){cur.x=Math.max(0,Math.min(N-1,cur.x+mv[0]));cur.y=Math.max(0,Math.min(N-1,cur.y+mv[1]));e.preventDefault();return}
+  if(k===' '||k==='enter'||k==='z'||k==='j'){act(1);e.preventDefault()}
+  else if(k==='x'||k==='k'){act(-1);e.preventDefault()}});
+addEventListener('blur',()=>setPause(true));
+document.addEventListener('visibilitychange',()=>{if(document.hidden)setPause(true)});
+$('restart').onclick=()=>{audio();startMatch()};
+$('pause').onclick=()=>setPause(!state.startsWith('pause'));
+$('snd').onclick=()=>setSound(!SND.on);
+setSound(SND.on,true);
+loadBest();renderSkills($('skills'));
+menu();requestAnimationFrame(frame);
+</script>
+</body>
+</html>

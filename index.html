@@ -1,0 +1,124 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Infinite Games</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bungee&family=Rubik:wght@400;500&display=swap">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <span class="label">Free to play · Made by us</span>
+    <h1>Infinite <span>Games</span></h1>
+    <p>Small browser games we build ourselves. No downloads, no sign-up. Pick one and play.</p>
+  </header>
+  <main class="shelf">
+    <a class="tile" href="games/snake/index.html">
+      <canvas class="thumb" id="snakeThumb" width="320" height="180" aria-hidden="true"></canvas>
+      <h2>Snake</h2>
+      <p>Eat, grow, don't bite your tail. Arrow keys, WASD or swipe.</p>
+    </a>
+    <a class="tile" href="games/vortex-bloom/index.html">
+      <canvas class="thumb" id="vortexThumb" width="320" height="180" aria-hidden="true"></canvas>
+      <h2>Vortex Bloom</h2>
+      <p>Circular brick breaker. Swing the paddle around the ring and smash the spinning bricks.</p>
+    </a>
+    <a class="tile" href="games/topple/index.html">
+      <canvas class="thumb" id="toppleThumb" width="320" height="180" aria-hidden="true"></canvas>
+      <h2>Topple</h2>
+      <p>Roll the slab across floating tiles and drop it upright into the hole.</p>
+    </a>
+    <a class="tile" href="games/twin-comets/index.html">
+      <canvas class="thumb" id="cometsThumb" width="320" height="180" aria-hidden="true"></canvas>
+      <h2>Twin Comets</h2>
+      <p>Two comets orbit each other. Tap on the beat to swing along the path.</p>
+    </a>
+    <a class="tile" href="games/flux-weave/index.html">
+      <canvas class="thumb" id="fluxThumb" width="320" height="180" aria-hidden="true"></canvas>
+      <h2>Flux Weave</h2>
+      <p>Turn pipes to route your flux to the cores before three CPU rivals cut you off. Five systems, 60 seconds each.</p>
+    </a>
+    <a class="tile" href="games/spindle-hop/index.html">
+      <canvas class="thumb" id="spindleThumb" width="320" height="180" aria-hidden="true"></canvas>
+      <h2>Spindle Hop</h2>
+      <p>Race three rivals up a spiral ramp around a tower, jumping hurdles, gaps and rolling drums and ducking beams. Every tower is built fresh.</p>
+    </a>
+    <div class="tile empty">
+      <h2>Next game</h2>
+      <p>Game 7 lands here. Tell us what to build.</p>
+    </div>
+  </main>
+  <footer>Infinite Games</footer>
+</div>
+<script>
+// Little attract-mode snake on the Snake tile.
+(function(){const c=document.getElementById('snakeThumb'),x=c.getContext('2d'),S=20,W=16,H=9;
+let s=[[3,4],[2,4],[1,4],[0,4]],t=0;const path=[[1,0]];
+function step(){const h=s[0];let d=t%30<15?[1,0]:[0,0];
+ const n=[(h[0]+1)%W,(Math.round(4+2*Math.sin(t/4)))];s.unshift(n);s.pop();t++;
+ x.fillStyle='#12101c';x.fillRect(0,0,320,180);
+ x.fillStyle='#ff5c8a';x.beginPath();x.arc(13*S+10,4*S+10,7,0,7);x.fill();
+ s.forEach((p,i)=>{x.fillStyle=i?'#c6f432':'#e6ff8a';x.fillRect(p[0]*S+1,p[1]*S+1,S-2,S-2)})}
+step();if(!matchMedia('(prefers-reduced-motion: reduce)').matches)setInterval(step,160)})();
+// Spinning rings on the Vortex Bloom tile.
+(function(){const c=document.getElementById('vortexThumb'),x=c.getContext('2d'),cols=['#ff9d88','#f3cd66','#6dd2b1','#919ff5','#f09dc7'];let t=0;
+function draw(){x.fillStyle='#12101c';x.fillRect(0,0,320,180);x.save();x.translate(160,90);x.lineWidth=9;
+ cols.forEach((col,i)=>{const r=18+i*13,n=6+i*2,rot=t*(i%2?-1:1)*(.4+i*.08);x.strokeStyle=col;
+  for(let k=0;k<n;k++){const a=rot+k/n*Math.PI*2;x.beginPath();x.arc(0,0,r,a+.08,a+Math.PI*2/n-.08);x.stroke()}});
+ x.strokeStyle='#ff5c8a';x.lineWidth=5;x.beginPath();x.arc(0,0,84,t*.9,t*.9+.7);x.stroke();x.restore();t+=.03}
+draw();if(!matchMedia('(prefers-reduced-motion: reduce)').matches)setInterval(draw,40)})();
+// Isometric tiles and an upright slab on the Topple tile.
+(function(){const x=document.getElementById('toppleThumb').getContext('2d');
+x.fillStyle='#12101c';x.fillRect(0,0,320,180);
+const iso=(i,j,h)=>[160+(i-j)*22,60+(i+j)*11-h];
+function top(i,j,h,c){const p=[iso(i,j,h),iso(i+1,j,h),iso(i+1,j+1,h),iso(i,j+1,h)];x.fillStyle=c;x.beginPath();p.forEach((q,k)=>k?x.lineTo(...q):x.moveTo(...q));x.closePath();x.fill()}
+for(let i=0;i<5;i++)for(let j=0;j<4;j++){if(i===4&&j===2)continue;top(i,j,0,(i+j)%2?'#343050':'#3d3960')}
+top(4,2,0,'#0b0a12');
+const [a,b,c,d]=[iso(1,1,0),iso(2,1,0),iso(2,2,0),iso(1,2,0)],H=44;
+x.fillStyle='#9fbf26';x.beginPath();x.moveTo(...d);x.lineTo(...c);x.lineTo(c[0],c[1]-H);x.lineTo(d[0],d[1]-H);x.fill();
+x.fillStyle='#b3d92c';x.beginPath();x.moveTo(...c);x.lineTo(...b);x.lineTo(b[0],b[1]-H);x.lineTo(c[0],c[1]-H);x.fill();
+top(1,1,H,'#c6f432');})();
+// Tile path with one comet parked and the other orbiting it, on the Twin Comets tile.
+(function(){const x=document.getElementById('cometsThumb').getContext('2d'),T=34,path=[[2,3],[3,3],[4,3],[4,2],[5,2],[6,2],[6,1]],R=T;let t=0,trail=[];
+function draw(){x.fillStyle='#12101c';x.fillRect(0,0,320,180);
+ path.forEach(([i,j],k)=>{x.fillStyle=k%2?'#5a5490':'#4a4478';x.fillRect(i*T+12,j*T+8,T-4,T-4)});
+ const cx=4*T+10+T/2-2,cy=2*T+6+T/2,a=t;const bx=cx+Math.cos(a)*R,by=cy+Math.sin(a)*R;
+ trail.push([bx,by]);if(trail.length>14)trail.shift();
+ trail.forEach(([px,py],i)=>{x.globalAlpha=i/trail.length*.5;x.fillStyle='#5ad1ff';x.beginPath();x.arc(px,py,4+i/trail.length*4,0,7);x.fill()});x.globalAlpha=1;
+ x.strokeStyle='rgba(255,255,255,.12)';x.beginPath();x.arc(cx,cy,R,0,7);x.stroke();
+ x.fillStyle='#ff8a3d';x.beginPath();x.arc(cx,cy,10,0,7);x.fill();
+ x.fillStyle='#5ad1ff';x.beginPath();x.arc(bx,by,9,0,7);x.fill();t+=.07}
+draw();if(!matchMedia('(prefers-reduced-motion: reduce)').matches)setInterval(draw,33)})();
+// Pipe grid with lime and pink flux racing to hexagon cores, on the Flux Weave tile.
+(function(){const x=document.getElementById('fluxThumb').getContext('2d'),G=24,ox=28,oy=6,C=11,R=7;let t=0;
+const P=(i,j)=>[ox+i*G+G/2,oy+j*G+G/2];
+const lime=[[0,0],[1,0],[1,1],[2,1],[3,1],[3,2],[4,2],[4,3]],pink=[[10,0],[9,0],[9,1],[8,1],[7,1],[7,2],[6,2],[5,2]];
+function hex(cx,cy,r,col,glow){x.save();x.shadowColor=col;x.shadowBlur=glow;x.fillStyle=col;x.beginPath();for(let k=0;k<6;k++){const a=Math.PI/3*k+Math.PI/6;x.lineTo(cx+Math.cos(a)*r,cy+Math.sin(a)*r)}x.closePath();x.fill();x.restore()}
+function pipe(path,col,n){x.strokeStyle=col;x.lineWidth=5;x.lineCap='round';x.lineJoin='round';x.beginPath();path.slice(0,n).forEach((q,k)=>{const [a,b]=P(...q);k?x.lineTo(a,b):x.moveTo(a,b)});x.stroke()}
+function draw(){x.fillStyle='#12101c';x.fillRect(0,0,320,180);
+ for(let i=0;i<C;i++)for(let j=0;j<R;j++){x.fillStyle=(i+j)%2?'#1d1a2e':'#221f36';x.fillRect(ox+i*G+1,oy+j*G+1,G-2,G-2)}
+ x.globalAlpha=.25;pipe(lime,'#c6f432',99);pipe(pink,'#ff5c8a',99);x.globalAlpha=1;
+ const n=2+Math.floor(t)%(lime.length);pipe(lime,'#c6f432',n);pipe(pink,'#ff5c8a',Math.max(1,n-1));
+ hex(...P(4,4),10,'#c6f432',n>=lime.length?18:6);hex(...P(5,3),11,'#a39fbe',4);
+ x.fillStyle='#12101c';x.font='bold 10px Rubik,system-ui,sans-serif';x.textAlign='center';x.textBaseline='middle';x.fillText('x3',...P(5,3));t+=.12}
+draw();if(!matchMedia('(prefers-reduced-motion: reduce)').matches)setInterval(draw,90)})();
+// Spiral ramp climbing a tower, a runner hopping a hurdle and a beam above, on the Spindle Hop tile.
+(function(){const x=document.getElementById('spindleThumb').getContext('2d'),cx=160,TW=26,RR=92,TOP=8,BOT=176,TURNS=2;let t=0;
+const PH=Math.PI/2-.18*TURNS*Math.PI*2+.5,pt=(u,r)=>{const a=u*TURNS*Math.PI*2+PH;return[cx+Math.cos(a)*r,BOT-14-u*(BOT-TOP-30)+Math.sin(a)*10,Math.sin(a)]};
+function ramp(front){x.lineCap='round';for(let k=0;k<200;k++){const u=k/200,v=(k+1)/200,[x1,y1,z]=pt(u,RR-6),[x2,y2]=pt(v,RR-6);if((z>0)!==front)continue;x.strokeStyle=k%8<4?'#8a5a3a':'#9c6a45';x.lineWidth=12;x.beginPath();x.moveTo(x1,y1);x.lineTo(x2,y2);x.stroke()}}
+function draw(){x.fillStyle='#12101c';x.fillRect(0,0,320,180);
+ ramp(false);
+ const g=x.createLinearGradient(cx-TW,0,cx+TW,0);g.addColorStop(0,'#2a2645');g.addColorStop(.5,'#4a4478');g.addColorStop(1,'#2a2645');x.fillStyle=g;x.fillRect(cx-TW,TOP,TW*2,BOT-TOP);
+ ramp(true);
+ const runU=.18,[rx,ry,rz]=pt(runU,RR-6),[hx,hy,hz]=pt(runU+.03,RR-6),[bx,by,bz]=pt(.68,RR-6),jump=Math.max(0,Math.sin(t*5))*16;
+ const vis=z=>z>0;
+ if(vis(hz)){x.strokeStyle='#ff5c8a';x.lineWidth=4;x.beginPath();x.moveTo(hx-7,hy-2);x.lineTo(hx-7,hy-12);x.lineTo(hx+7,hy-12);x.lineTo(hx+7,hy-2);x.stroke()}
+ if(vis(bz)){x.strokeStyle='#5ad1ff';x.lineWidth=5;x.beginPath();x.moveTo(bx-12,by-22);x.lineTo(bx+12,by-22);x.stroke()}
+ if(vis(rz)){x.fillStyle='#c6f432';x.beginPath();x.roundRect?x.roundRect(rx-5,ry-22-jump,10,18,5):x.rect(rx-5,ry-22-jump,10,18);x.fill()}
+ t+=.025}
+draw();if(!matchMedia('(prefers-reduced-motion: reduce)').matches)setInterval(draw,33)})();
+</script>
+</body>
+</html>

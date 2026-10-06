@@ -1,0 +1,587 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no">
+<title>Topple · Infinite Games</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bungee&family=Rubik:wght@400;500&display=swap">
+<link rel="stylesheet" href="../../style.css">
+<style>
+  main{max-width:640px;margin:0 auto;padding-block:24px 40px;display:grid;gap:12px;justify-items:center;text-align:center}
+  h1{margin:0;font-family:var(--display);font-weight:400;color:var(--lime);font-size:2.4rem}
+  .bar{display:flex;justify-content:space-between;gap:12px;width:100%;color:var(--muted);font-variant-numeric:tabular-nums}
+  .bar b{color:var(--text)}
+  .stage{position:relative;width:100%}
+  canvas{display:block;background:#0b0a12;border:2px solid var(--line);border-radius:6px;width:100%;aspect-ratio:4/3;touch-action:none}
+  .msg{position:absolute;inset:0;display:none;place-content:center;gap:12px;background:rgba(11,10,18,.78);border-radius:6px;padding:16px}
+  .msg.on{display:grid}
+  .msg h2{margin:0;font-family:var(--display);font-weight:400;color:var(--lime);font-size:1.8rem}
+  .msg p{margin:0;color:var(--muted)}
+  button{background:var(--lime);color:var(--bg);border:0;border-radius:6px;padding:10px 20px;font:400 1rem var(--display);cursor:pointer}
+  button.ghost{background:var(--panel);color:var(--text);border:2px solid var(--line)}
+  button:disabled{opacity:.35;cursor:default}
+  .row{display:flex;flex-wrap:wrap;gap:8px;justify-content:center}
+  .levels button{padding:6px 12px;min-width:40px}
+  .levels button.cur{background:var(--pink);color:var(--bg)}
+  .tip{color:var(--text);margin:0;min-height:1.5em}
+  .back{justify-self:start;color:var(--muted)}
+</style>
+</head>
+<body>
+<main>
+  <a class="back" href="../../index.html">← All games</a>
+  <h1>Topple</h1>
+  <div class="bar"><span>Level <b id="lvl">1</b>: <b id="lname"></b></span><span>Moves <b id="moves">0</b></span><span>Best <b id="best">–</b></span></div>
+  <div class="stage">
+    <canvas id="c"></canvas>
+    <div class="msg" id="msg"><h2 id="mt"></h2><p id="mp"></p><div class="row"><button id="mb"></button></div></div>
+  </div>
+  <p class="tip" id="tip"></p>
+  <div class="row"><button class="ghost" id="restart">Restart (R)</button><button class="ghost" id="snd">Sound on (M)</button></div>
+  <div class="row levels" id="levels"></div>
+</main>
+<script>
+// Map key: . empty, o floor, S start, G goal hole, f cracked tile (can't stand on it),
+// a/b soft switch (any touch) and A/B heavy switch (standing only) toggle bridges 1/2.
+const LEVELS=[
+{name:"First Tumble",tip:"Roll the slab to the glowing hole and drop in standing up.",map:[
+"..oooo....",
+"ooSoooo...",
+"oooooooooo",
+"oooo..ooGo",
+"......oooo"]},
+{name:"Narrow Ways",tip:"One-wide paths only fit a slab rolling end over end.",map:[
+"ooo..........",
+"oSoooooo.....",
+"ooo....o.....",
+".......o.....",
+".......o.....",
+".....oooooooo",
+".....oooooooo",
+"..........ooo",
+"..........oGo",
+"..........ooo"]},
+{name:"Thin Ice",tip:"Orange tiles crack if you stand on them. Lying down is fine.",map:[
+"ooooffffff....",
+"oSooffffffoooo",
+"ooooffffffooGo",
+"......ffffoooo"]},
+{name:"Switchback",tip:"Round switches flip their bridge whenever any part of the slab lands on them.",map:[
+"oooo.......",
+"oSoa11oooo.",
+"oooo11ooGo.",
+"oooo..oooo."]},
+{name:"Heavy Press",tip:"X switches only flip when the slab stands on them.",map:[
+"..........ooo",
+"oooo......oGo",
+"oSoo11ooooooo",
+"oooo11ooffooo",
+"ooAo..ooff...",
+"......oooo..."]},
+{name:"Grand Tour",tip:"Two switches, two bridges. Mind which one you flip.",map:[
+"ooo....oooo........",
+"oSoo111ooboo.......",
+"oooo111oooooo22oooo",
+"oooa...ffff.o22ooGo",
+".......ffff.....ooo"]},
+{name:"Pocket Square",map:[
+"oo..",
+"oGoo",
+"ooSo",
+"..oo"]},
+{name:"Sidestep",map:[
+"...oo",
+"SGooo",
+"..ooo",
+"..oo.",
+"..oo."]},
+{name:"Crackle",map:[
+".oG",
+"ooo",
+"oSo",
+"oof"]},
+{name:"Hairpin",map:[
+"oo...",
+"ooo.S",
+"oooGo",
+".oooo"]},
+{name:"Detour",map:[
+"foooooGo",
+"ooo....o",
+"ooo....o",
+".......S"]},
+{name:"Ice Shelf",map:[
+"...o11G",
+"...o...",
+"...oo..",
+"..ooo..",
+"ooooo..",
+"oSao..."]},
+{name:"Long Way Round",map:[
+"....ooo",
+"..ooooS",
+"ooooo.o",
+"oooo..o",
+"......o",
+"......G"]},
+{name:"Press Gang",map:[
+"oo.....",
+"ooo....",
+"oooSoo1",
+".ooAoo1",
+"......G"]},
+{name:"Toll Bridge",map:[
+"G11o..",
+"...oao",
+"..oo..",
+"..ooo.",
+"..ooS.",
+"..ooo."]},
+{name:"Brittle Path",map:[
+"oGo......",
+"ooo......",
+"oo.......",
+"o........",
+"oooo.fooS",
+"...oooooo",
+"...oooo.."]},
+{name:"Crossed Wires",map:[
+"ofooo...",
+"Soooo...",
+"foo.o...",
+".o..oo..",
+".G..oo..",
+"....oooo",
+".....ooo"]},
+{name:"Maze Runner",map:[
+"A....",
+"o1oSo",
+"o.ooo",
+"ooooo",
+"G...."]},
+{name:"Stamp",map:[
+"oSo...",
+"oBoooo",
+".ooaoo",
+".....2",
+".....1",
+".....1",
+".....G"]},
+{name:"Glass Garden",map:[
+"G....S..",
+"ooo.oooo",
+"oooooooo",
+"..o.ooo.",
+".ooo....",
+".ooo....",
+".ooo...."]},
+{name:"Drawbridge",map:[
+".oooo.",
+".ooooo",
+".o.ooo",
+"oo....",
+"oG....",
+"o.ooo.",
+"ooooo.",
+"ooo.S."]},
+{name:"Fault Line",map:[
+"ooo....",
+"ooo.SG.",
+".oooo1.",
+"..ooooa"]},
+{name:"Pressure Point",map:[
+"..a..",
+"Sfoo.",
+"12oo.",
+".fboG",
+".oo.."]},
+{name:"Two Keys",map:[
+"So......",
+"ooof.ooo",
+"oooo.ooo",
+"..foooof",
+"..oG...."]},
+{name:"Wanderer",map:[
+"ooo....",
+"ooooo1G",
+"..oo...",
+".ooo...",
+".oS....",
+".oooo..",
+"..ooA.."]},
+{name:"Shatter Switch",map:[
+"oooooo...ooo",
+"oo..oo.ooooo",
+"oo..oooooo..",
+"....G..o....",
+".......o....",
+".......ooo..",
+".......ooo..",
+"....Sooo...."]},
+{name:"Overpass",map:[
+"Go1o...",
+"...ooS.",
+"...2oo.",
+"...aoo.",
+"....o..",
+"....oo1",
+"....ooo",
+"....ooB"]},
+{name:"Weight Room",map:[
+"..a..",
+"..o..",
+"bof.G",
+"oooS2",
+"2ooo1"]},
+{name:"Crumble",map:[
+"......ooo",
+"......ooo",
+"......Soo",
+".oGoo..oo",
+"oooooooo1",
+"a..oo....",
+"o........"]},
+{name:"Gatekeeper",map:[
+"...oooooAo.",
+"...ooo..o1G",
+"..ooo......",
+"..oS.......",
+"ooo........",
+"ooo........"]},
+{name:"Splinters",map:[
+".......oG",
+".....ooBo",
+"oooSooooo",
+"oo.oo1...",
+"oo.2.....",
+"...a....."]},
+{name:"Backroads",map:[
+".ob2..",
+".ooo..",
+"..oo..",
+"..fooo",
+"Goofoo",
+".o1.oo",
+".ooSoo",
+"...ao."]},
+{name:"Ferry",map:[
+"ooo.......",
+"ooooo.....",
+"oo..o.....",
+"ooa.o.ooo1",
+"...Goooooo",
+".......ooo",
+".......So."]},
+{name:"Anvil",map:[
+"a.........",
+"o.........",
+"ooo..oooo.",
+".oSoooooo.",
+".1G2...oBo",
+"........oo",
+".......ooo",
+".......ooo"]},
+{name:"Interchange",map:[
+"oo.........",
+"oo..oooSoo.",
+"ooAooo..o1G",
+"....ooo....",
+"....ooo....",
+".....oo...."]},
+{name:"Final Topple",map:[
+"...........G",
+"........oooo",
+"ooo...Soofo2",
+"oooooooofo..",
+"aoo....o....",
+".......oo...",
+".......oo...",
+"........b..."]},
+];
+
+const cv=document.getElementById('c'),ctx=cv.getContext('2d');
+const $=id=>document.getElementById(id);
+const GROUP=['#4fd1c5','#b18cff'];
+// Each level cycles through a world: sky gradient, tile and slab colours, hole rim, ambient effect.
+const THEMES=[
+ {name:'Dusk',bg:['#1d1734','#0b0a12'],tile:'#3d3863',block:'#c6f432',rim:'#ff5c8a',fx:'stars',fxc:'#ffffff'},
+ {name:'Deep Sea',bg:['#0b2f4a','#03101b'],tile:'#2f5d7c',block:'#ff7a6b',rim:'#ffd166',fx:'bubbles',fxc:'#9fd8ff'},
+ {name:'Mossy Grove',bg:['#1b3522','#06110a'],tile:'#4a6b3f',block:'#ffd23f',rim:'#ff9ecd',fx:'fireflies',fxc:'#e8ff7a'},
+ {name:'Glacier',bg:['#35587a','#0f1d2b'],tile:'#9db7cc',block:'#ff4fa3',rim:'#ffffff',fx:'snow',fxc:'#ffffff'},
+ {name:'Ember Forge',bg:['#34120b','#0d0605'],tile:'#4b4146',block:'#ffe14d',rim:'#ff5a1f',fx:'embers',fxc:'#ff8a3d'},
+ {name:'Candy Cloud',bg:['#47234f','#170b20'],tile:'#d98fb8',block:'#6ef2c6',rim:'#ffffff',fx:'sparkle',fxc:'#ffd6f5'},
+ {name:'Outer Rim',bg:['#0b0f33','#020208'],tile:'#3a4370',block:'#7df9ff',rim:'#ff5c8a',fx:'stars',fxc:'#c9d6ff'},
+ {name:'Slate Storm',bg:['#2a2f38','#0c0e12'],tile:'#5d6573',block:'#ff6b6b',rim:'#c6f432',fx:'rain',fxc:'#a9bdd2'},
+];
+let theme=THEMES[0],fx=[];
+const hexA=(h,a)=>{const n=parseInt(h.slice(1),16);return`rgba(${n>>16},${n>>8&255},${n&255},${a})`};
+
+// ---- sound: everything is synthesised with Web Audio, no files ----
+const SND={on:true,ctx:null};
+try{SND.on=localStorage.getItem('toppleSound')!=='off'}catch(e){}
+function audio(){
+  if(!SND.on)return null;
+  if(!SND.ctx){try{const C=window.AudioContext||window.webkitAudioContext,a=new C();SND.ctx=a;
+    SND.master=a.createGain();SND.master.gain.value=.55;SND.master.connect(a.destination);
+    const dl=a.createDelay(),fb=a.createGain(),lp=a.createBiquadFilter(); // short echo gives a roomy tail
+    dl.delayTime.value=.11;fb.gain.value=.22;lp.frequency.value=2200;
+    SND.master.connect(dl);dl.connect(lp);lp.connect(fb);fb.connect(dl);lp.connect(a.destination);
+  }catch(e){SND.on=false;return null}}
+  if(SND.ctx.state==='suspended')SND.ctx.resume();
+  return SND.ctx}
+function noiseBuf(a){if(!SND.nb){const b=a.createBuffer(1,a.sampleRate,a.sampleRate),d=b.getChannelData(0);for(let i=0;i<d.length;i++)d[i]=Math.random()*2-1;SND.nb=b}return SND.nb}
+function tone(type,f0,f1,dur,vol,when=0){const a=audio();if(!a)return;
+  const t=a.currentTime+when,o=a.createOscillator(),g=a.createGain();o.type=type;
+  o.frequency.setValueAtTime(f0,t);o.frequency.exponentialRampToValueAtTime(f1,t+dur);
+  g.gain.setValueAtTime(0,t);g.gain.linearRampToValueAtTime(vol,t+.005);g.gain.exponentialRampToValueAtTime(.0001,t+dur);
+  o.connect(g);g.connect(SND.master);o.start(t);o.stop(t+dur+.02)}
+function noise(freq,q,dur,vol,when=0,type='lowpass'){const a=audio();if(!a)return;
+  const t=a.currentTime+when,src=a.createBufferSource(),f=a.createBiquadFilter(),g=a.createGain();
+  src.buffer=noiseBuf(a);f.type=type;f.frequency.value=freq;f.Q.value=q;
+  g.gain.setValueAtTime(vol,t);g.gain.exponentialRampToValueAtTime(.0001,t+dur);
+  src.connect(f);f.connect(g);g.connect(SND.master);src.start(t,Math.random()*.5);src.stop(t+dur+.02)}
+const sfx={
+  land(stand){const j=1+(Math.random()-.5)*.08; // standing up lands deeper and heavier
+    tone('sine',(stand?95:140)*j,(stand?45:70)*j,stand?.22:.16,stand?.9:.6);
+    noise(stand?700:1100,.7,.07,stand?.5:.35);tone('triangle',(stand?380:520)*j,(stand?300:420)*j,.05,.12)},
+  click(){tone('square',1200,1200,.035,.1);tone('square',1800,1800,.05,.08,.045)},
+  bridge(open){tone('sine',open?320:900,open?960:300,.28,.18,.06);tone('triangle',open?640:1400,open?1900:500,.22,.06,.09)},
+  crack(){for(let i=0;i<5;i++)noise(2500+Math.random()*2000,3,.04,.45,i*.035,'bandpass');tone('sine',200,60,.3,.3,.05)},
+  fall(){tone('sine',700,90,.9,.2);noise(500,1,.5,.1,.05)},
+  win(){[523.25,659.25,783.99,1046.5].forEach((f,i)=>tone('triangle',f,f,.45,.22,i*.08));
+    tone('sine',2093,2093,.6,.06,.32);tone('sine',110,55,.5,.4)},
+  spawn(){tone('sine',180,90,.12,.35);noise(900,.7,.05,.2)},
+};
+function setSound(on,init){SND.on=on;try{localStorage.setItem('toppleSound',on?'on':'off')}catch(e){}
+  $('snd').textContent=on?'Sound on (M)':'Sound off (M)';if(on&&!init)audio()}
+const T=0.3; // tile thickness
+let save={unlocked:1,best:{}};
+try{Object.assign(save,JSON.parse(localStorage.getItem('toppleSave'))||{})}catch(e){}
+function persist(){try{localStorage.setItem('toppleSave',JSON.stringify(save))}catch(e){}}
+
+let li=0,tiles,lookup,start,blk,bits,moves,anim=null,queued=null,vis,overlay=false,view,settle=1e9;
+
+function load(i){
+  li=i;const m=LEVELS[i].map;tiles=[];lookup={};
+  theme=THEMES[i%THEMES.length];fx=Array.from({length:70},()=>({x:Math.random(),y:Math.random(),r:Math.random(),p:Math.random()*6.283}));
+  m.forEach((row,y)=>[...row].forEach((c,x)=>{if(c==='.')return;if(c==='S'){start={x,y};c='o'}tiles.push({x,y,c});lookup[x+','+y]=c}));
+  tiles.sort((a,b)=>depth(a.x+.5,a.y+.5)-depth(b.x+.5,b.y+.5));
+  vis={};resetBlock();fit();hideMsg();ui();
+}
+function resetBlock(){blk={x:start.x,y:start.y,o:0};bits=0;moves=0;queued=null;
+  anim={type:'spawn',t:0,dur:420}; // drops in from above
+  tiles.forEach(t=>{if(isBridge(t.c))vis[t.x+','+t.y]=0})}
+const isBridge=c=>c==='1'||c==='2';
+function active(x,y){const c=lookup[x+','+y];if(!c)return false;if(isBridge(c))return !!(bits>>(c-1)&1);return true}
+function cells(b){return b.o===0?[[b.x,b.y]]:b.o===1?[[b.x,b.y],[b.x+1,b.y]]:[[b.x,b.y],[b.x,b.y+1]]}
+function step(b,dx,dy){const{x,y,o}=b;
+  if(o===0)return dx===1?{x:x+1,y,o:1}:dx===-1?{x:x-2,y,o:1}:dy===1?{x,y:y+1,o:2}:{x,y:y-2,o:2};
+  if(o===1)return dx===1?{x:x+2,y,o:0}:dx===-1?{x:x-1,y,o:0}:{x,y:y+dy,o:1};
+  return dy===1?{x,y:y+2,o:0}:dy===-1?{x,y:y-1,o:0}:{x:x+dx,y,o:2}}
+function boxOf(b){return b.o===0?[b.x,b.y,0,b.x+1,b.y+1,2]:b.o===1?[b.x,b.y,0,b.x+2,b.y+1,1]:[b.x,b.y,0,b.x+1,b.y+2,1]}
+
+function move(dx,dy){
+  if(overlay)return;
+  if(anim){if(anim.type==='roll'||anim.type==='spawn')queued=[dx,dy];return}
+  audio();
+  const to=step(blk,dx,dy);moves++;ui();
+  // A roll that will go over the edge speeds up instead of settling, so the topple carries on from it.
+  const off=cells(to).some(([x,y])=>!active(x,y));
+  anim={type:'roll',from:boxOf(blk),dx,dy,to,t:0,dur:off?260:210,off};
+}
+function land(){
+  const r=anim;blk=r.to;anim=null;
+  const cs=cells(blk);
+  const fail=()=>cs.some(([x,y])=>!active(x,y));
+  if(fail())return topple(r);
+  const here=lookup[blk.x+','+blk.y];
+  if(blk.o===0&&here==='f'){sfx.crack();return fall({mode:'drop',box:boxOf(blk),tile:blk.x+','+blk.y})}
+  if(blk.o===0&&here==='G'){sfx.land(true);return win()}
+  sfx.land(blk.o===0);settle=0;
+  const was=bits;
+  cs.forEach(([x,y])=>{const c=lookup[x+','+y];
+    if(c==='a'||c==='b')bits^=1<<(c==='a'?0:1);
+    if((c==='A'||c==='B')&&blk.o===0)bits^=1<<(c==='A'?0:1)});
+  if(bits!==was){sfx.click();sfx.bridge((bits&~was)!==0)}
+  if(fail())return topple(r);
+  if(queued){const q=queued;queued=null;move(...q)}
+}
+// Off an edge: with nothing underneath, the slab keeps rolling over the edge it pivoted on;
+// half on, half off, it tips over the edge between its two cells. Then it tumbles away.
+function topple(r){
+  const cs=cells(blk),sup=cs.map(([x,y])=>active(x,y));
+  if(!sup.some(Boolean)){const d=[r.dx,r.dy],i=r.dx?0:1,s=r.dx||r.dy;
+    // keep the roll's own spin rate (ease 0.5k+0.5k² ends at 1.5x average speed)
+    return fall({mode:'tip',box:r.from,d,c:s>0?r.from[i+3]:r.from[i],a0:Math.PI/2,w0:1.5*(Math.PI/2)/(r.dur/1000),al:6})}
+  const j=sup[0]?1:0,s=j?1:-1;
+  const d=blk.o===1?[s,0]:[0,s],c=blk.o===1?blk.x+1:blk.y+1;
+  sfx.land(false);
+  fall({mode:'tip',box:boxOf(blk),d,c,a0:0,w0:0,al:26});
+}
+function fall(f){queued=null;sfx.fall();
+  if(f.mode==='tip')f.tr=(-f.w0+Math.sqrt(f.w0*f.w0+2*f.al*AMAX))/f.al; // time to tip past the edge
+  anim=Object.assign({type:'fall',t:0,dur:1300},f)}
+function win(){queued=null;sfx.win();anim={type:'win',t:0,dur:750}}
+function finish(){
+  if(anim.type==='fall'){resetBlock();ui();return}
+  if(anim.type==='spawn'){anim=null;sfx.spawn();settle=0;if(queued){const q=queued;queued=null;move(...q)}return}
+  anim=null;
+  const k=li;if(!save.best[k]||moves<save.best[k])save.best[k]=moves;
+  save.unlocked=Math.max(save.unlocked,Math.min(LEVELS.length,li+2));persist();ui();
+  if(li+1<LEVELS.length)showMsg('Level cleared','Done in '+moves+' moves.','Next level',()=>load(li+1));
+  else showMsg('You toppled them all','Every level cleared. Try for fewer moves.','Play level 1',()=>load(0));
+}
+
+// ---- rendering ----
+// Camera looks along the grid from the front, turned a little so the right-hand sides show.
+const YAW=12*Math.PI/180,ELEV=40*Math.PI/180;
+const CYW=Math.cos(YAW),SYW=Math.sin(YAW),CE=Math.cos(ELEV),SE=Math.sin(ELEV);
+const VIEW=[SYW*CE,CYW*CE,SE]; // points toward the camera
+const depth=(x,y)=>x*SYW+y*CYW;
+function proj(x,y,z){return[x*CYW-y*SYW,(x*SYW+y*CYW)*SE-z*CE]}
+function fit(){
+  const r=cv.getBoundingClientRect(),d=devicePixelRatio||1;
+  cv.width=Math.round(r.width*d);cv.height=Math.round(r.width*.75*d);
+  let x0=1e9,x1=-1e9,y0=1e9,y1=-1e9;
+  tiles.forEach(t=>[[t.x,t.y],[t.x+1,t.y],[t.x,t.y+1],[t.x+1,t.y+1]].forEach(([x,y])=>[-T,2].forEach(z=>{
+    const[u,v]=proj(x,y,z);x0=Math.min(x0,u);x1=Math.max(x1,u);y0=Math.min(y0,v);y1=Math.max(y1,v)})));
+  const s=Math.min(cv.width*.9/(x1-x0),cv.height*.88/(y1-y0));
+  view={s,ox:cv.width/2-(x0+x1)/2*s,oy:cv.height/2-(y0+y1)/2*s};
+}
+function P(x,y,z){const[u,v]=proj(x,y,z);return[view.ox+u*view.s,view.oy+v*view.s]}
+function shade(hex,k){const n=parseInt(hex.slice(1),16);
+  return`rgb(${[n>>16,n>>8&255,n&255].map(v=>Math.min(255,Math.round(v*k))).join(',')})`}
+function poly(pts,fill,stroke){ctx.beginPath();pts.forEach((p,i)=>i?ctx.lineTo(p[0],p[1]):ctx.moveTo(p[0],p[1]));ctx.closePath();
+  if(fill){ctx.fillStyle=fill;ctx.fill()}if(stroke){ctx.strokeStyle=stroke;ctx.lineWidth=Math.max(1,view.s*.02);ctx.stroke()}}
+const FACES=[[[0,2,6,4],[-1,0,0]],[[1,5,7,3],[1,0,0]],[[0,4,5,1],[0,-1,0]],[[2,3,7,6],[0,1,0]],[[0,1,3,2],[0,0,-1]],[[4,6,7,5],[0,0,1]]];
+const lit=n=>.45+.55*Math.max(0,Math.min(1,n[2]+n[0]*.55+n[1]*.25));
+function corners(b){const c=[];for(let i=0;i<8;i++)c.push([b[i&1?3:0],b[i&2?4:1],b[i&4?5:2]]);return c}
+// Convex box: drawing only the faces turned toward the camera needs no sorting.
+function drawBox(pts,normals,base,top,stroke){
+  FACES.forEach(([idx,n],i)=>{n=normals?normals[i]:n;if(n[0]*VIEW[0]+n[1]*VIEW[1]+n[2]*VIEW[2]<=1e-6)return;
+    poly(idx.map(k=>P(...pts[k])),top&&n[2]>.999?top:shade(base,lit(n)),stroke)})}
+function prism(x0,y0,z0,x1,y1,z1,top,base){drawBox(corners([x0,y0,z0,x1,y1,z1]),null,base,top,'rgba(0,0,0,.25)')}
+function ring(cx,cy,r,z,col,lw){ctx.beginPath();for(let i=0;i<=24;i++){const a=i/24*Math.PI*2,p=P(cx+Math.cos(a)*r,cy+Math.sin(a)*r,z);i?ctx.lineTo(...p):ctx.moveTo(...p)}
+  ctx.strokeStyle=col;ctx.lineWidth=lw;ctx.stroke()}
+function drawTile(t,now){
+  const i=.03;let x0=t.x+i,y0=t.y+i,x1=t.x+1-i,y1=t.y+1-i,z=0,c=t.c,key=t.x+','+t.y;
+  if(anim&&anim.type==='fall'&&anim.tile===key){const k=anim.t/1000;z=-10*k*k}
+  if(isBridge(c)){const v=vis[key];if(v<.02)return;z-=(1-v)*.8;ctx.globalAlpha=v;prism(x0,y0,z-T,x1,y1,z,shade(GROUP[c-1],.8),GROUP[c-1]);ctx.globalAlpha=1;return}
+  if(c==='f'){prism(x0,y0,z-T,x1,y1,z,'#ff9f43','#ff9f43');
+    ctx.strokeStyle='rgba(90,40,0,.5)';ctx.lineWidth=Math.max(1,view.s*.025);ctx.beginPath();
+    ctx.moveTo(...P(t.x+.2,t.y+.3,z));ctx.lineTo(...P(t.x+.5,t.y+.5,z));ctx.lineTo(...P(t.x+.45,t.y+.8,z));
+    ctx.moveTo(...P(t.x+.5,t.y+.5,z));ctx.lineTo(...P(t.x+.82,t.y+.42,z));ctx.stroke();return}
+  if(c==='G'){prism(x0,y0,z-T,x1,y1,z,theme.tile,theme.tile);
+    const pulse=.5+.5*Math.sin(now/300);
+    poly([P(t.x+.1,t.y+.1,0),P(t.x+.9,t.y+.1,0),P(t.x+.9,t.y+.9,0),P(t.x+.1,t.y+.9,0)],'#05040a',hexA(theme.rim,.5+.5*pulse));return}
+  prism(x0,y0,z-T,x1,y1,z,theme.tile,theme.tile);
+  const lw=Math.max(2,view.s*.06);
+  if(c==='a'||c==='b')ring(t.x+.5,t.y+.5,.28,0,GROUP[c==='a'?0:1],lw);
+  if(c==='A'||c==='B'){const col=GROUP[c==='A'?0:1];ctx.strokeStyle=col;ctx.lineWidth=lw;ctx.lineCap='round';ctx.beginPath();
+    ctx.moveTo(...P(t.x+.25,t.y+.25,0));ctx.lineTo(...P(t.x+.75,t.y+.75,0));ctx.moveTo(...P(t.x+.75,t.y+.25,0));ctx.lineTo(...P(t.x+.25,t.y+.75,0));ctx.stroke()}
+}
+// Rotate a point about the horizontal edge at coordinate c (x when d is along x, else y), z=0,
+// tipping toward direction d. Normals pass through with c=0.
+function tip(p,d,c,a){const cs=Math.cos(a),sn=Math.sin(a),i=d[0]?0:1,s=d[0]||d[1];
+  const u=(p[i]-c)*s,w=p[2],q=p.slice();q[i]=c+(u*cs+w*sn)*s;q[2]=-u*sn+w*cs;return q}
+function spinZ(p,cx,cy,a){const cs=Math.cos(a),sn=Math.sin(a),x=p[0]-cx,y=p[1]-cy;return[cx+x*cs-y*sn,cy+x*sn+y*cs,p[2]]}
+const G=22,AMAX=1.2;
+const ease=(k,off)=>off?.5*k+.5*k*k:(1-Math.cos(Math.PI*k))/2;
+const soft=(t,v)=>v*t*t/(t+.3); // ramps a spin up from rest instead of snapping to speed
+function blockPose(){
+  let box=boxOf(blk);
+  const ns=FACES.map(f=>f[1]);
+  if(anim&&anim.type==='roll'){const k=Math.min(1,anim.t/anim.dur),i=anim.dx?0:1,s=anim.dx||anim.dy,d=[anim.dx,anim.dy];
+    box=anim.from;const c=s>0?box[i+3]:box[i],a=ease(k,anim.off)*Math.PI/2;
+    return{pts:corners(box).map(p=>tip(p,d,c,a)),ns:ns.map(n=>tip(n,d,0,a))}}
+  if(anim&&anim.type==='fall'){const t=anim.t/1000,f=anim;
+    let a=0,tt=t,drift=0,spin=0;
+    if(f.mode==='tip'){if(t<f.tr){a=f.a0+f.w0*t+.5*f.al*t*t;tt=0}
+      else{tt=t-f.tr;a=f.a0+AMAX+(f.w0+f.al*f.tr)*tt;drift=1.4*tt;spin=soft(tt,3.5)}}
+    else spin=soft(t,2.5);
+    const drop=.5*G*tt*tt,d=f.d||[1,0];
+    let pts=corners(f.box).map(p=>{const q=f.mode==='tip'?tip(p,d,f.c,a):p.slice();q[0]+=d[0]*drift;q[1]+=d[1]*drift;q[2]-=drop;return q});
+    const cx=pts.reduce((s,p)=>s+p[0],0)/8,cy=pts.reduce((s,p)=>s+p[1],0)/8;
+    pts=pts.map(p=>spinZ(p,cx,cy,spin));
+    return{pts,ns:ns.map(n=>spinZ(f.mode==='tip'?tip(n,d,0,a):n,0,0,spin))}}
+  let dz=0,sq=1;
+  if(anim&&anim.type==='win')dz=-2.4*(anim.t/anim.dur)**2;
+  if(anim&&anim.type==='spawn'){const k=anim.t/anim.dur;dz=4*(1-k*k)}
+  if(settle<140)sq=1-.07*Math.sin(Math.PI*settle/140); // brief squash on landing
+  return{pts:corners(box).map(p=>[p[0],p[1],p[2]*sq+dz]),ns}
+}
+function drawBlock(pose){drawBox(pose.pts,pose.ns,theme.block,null,'rgba(0,0,0,.35)')}
+function drawSky(now,dt){
+  const W=cv.width,H=cv.height,u=Math.min(W,H)/320,t=now/1000,g=ctx.createLinearGradient(0,0,0,H);
+  g.addColorStop(0,theme.bg[0]);g.addColorStop(1,theme.bg[1]);ctx.fillStyle=g;ctx.fillRect(0,0,W,H);
+  ctx.fillStyle=ctx.strokeStyle=theme.fxc;ctx.lineWidth=u;
+  for(const p of fx){let a=1,r=1;
+    switch(theme.fx){
+      case'stars':a=.25+.75*Math.abs(Math.sin(t*.8+p.p*5));r=.5+p.r*1.3;break;
+      case'snow':p.y+=dt*(4e-5+p.r*6e-5);p.x+=Math.sin(t+p.p)*2e-4;r=.8+p.r*1.8;a=.85;break;
+      case'bubbles':p.y-=dt*(3e-5+p.r*5e-5);p.x+=Math.sin(t*2+p.p)*3e-4;r=1.2+p.r*2.8;a=.45;break;
+      case'embers':p.y-=dt*(5e-5+p.r*8e-5);p.x+=Math.sin(t*3+p.p)*4e-4;r=.6+p.r*1.2;a=Math.max(0,p.y);break;
+      case'fireflies':p.x+=Math.cos(t*.7+p.p*3)*3e-4;p.y+=Math.sin(t*.9+p.p*2)*3e-4;r=1+p.r;a=Math.max(0,Math.sin(t*1.5+p.p*4));break;
+      case'sparkle':a=Math.max(0,Math.sin(t*1.2+p.p*7))**3;r=1+p.r*2;break;
+      case'rain':p.y+=dt*(9e-4+p.r*5e-4);a=.35;break;
+    }
+    if(p.y>1.03){p.y-=1.06;p.x=Math.random()}if(p.y<-.03){p.y+=1.06;p.x=Math.random()}p.x=(p.x+1)%1;
+    const x=p.x*W,y=p.y*H;ctx.globalAlpha=a;ctx.beginPath();
+    if(theme.fx==='rain'){ctx.moveTo(x,y);ctx.lineTo(x-3*u,y+12*u);ctx.stroke()}
+    else if(theme.fx==='bubbles'){ctx.arc(x,y,r*u,0,6.283);ctx.stroke()}
+    else if(theme.fx==='sparkle'){const s=r*2.2*u;ctx.moveTo(x-s,y);ctx.lineTo(x+s,y);ctx.moveTo(x,y-s);ctx.lineTo(x,y+s);ctx.stroke()}
+    else{if(theme.fx==='fireflies'){ctx.globalAlpha=a*.25;ctx.arc(x,y,r*4*u,0,6.283);ctx.fill();ctx.globalAlpha=a;ctx.beginPath()}
+      ctx.arc(x,y,r*u,0,6.283);ctx.fill()}
+  }
+  ctx.globalAlpha=1;
+}
+let last=performance.now();
+function frame(now){
+  const dt=Math.min(50,now-last);last=now;
+  settle+=dt;
+  if(anim){anim.t+=dt;if(anim.t>=anim.dur){if(anim.type==='roll')land();else finish()}}
+  for(const k in vis){const c=lookup[k],on=!!(bits>>(c-1)&1);vis[k]+=((on?1:0)-vis[k])*Math.min(1,dt/90)}
+  drawSky(now,dt);
+  const pose=blockPose();
+  if(anim&&anim.type==='win'){ // clip to the hole so the slab sinks into it
+    tiles.forEach(t=>drawTile(t,now));
+    const g=tiles.find(t=>t.c==='G'),L=P(g.x+.1,g.y+.9,0),B=P(g.x+.9,g.y+.9,0),R=P(g.x+.9,g.y+.1,0);
+    ctx.save();ctx.beginPath();ctx.moveTo(...L);ctx.lineTo(...B);ctx.lineTo(...R);ctx.lineTo(R[0],-1);ctx.lineTo(L[0],-1);ctx.closePath();ctx.clip();drawBlock(pose);ctx.restore();
+  }else{
+    // Once the slab drops below the floor, slot it between the tiles behind it and those in front.
+    const cz=pose.pts.reduce((s,p)=>s+p[2],0)/8;
+    if(cz<-.2){const bk=depth(pose.pts.reduce((s,p)=>s+p[0],0)/8,pose.pts.reduce((s,p)=>s+p[1],0)/8);let done=false;
+      tiles.forEach(t=>{if(!done&&depth(t.x+.5,t.y+.5)>bk){drawBlock(pose);done=true}drawTile(t,now)});if(!done)drawBlock(pose)}
+    else{tiles.forEach(t=>drawTile(t,now));drawBlock(pose)}
+  }
+  requestAnimationFrame(frame);
+}
+
+// ---- UI ----
+function ui(){
+  $('lvl').textContent=li+1;$('lname').textContent=LEVELS[li].name;$('moves').textContent=moves;
+  $('best').textContent=save.best[li]||'–';$('tip').textContent=LEVELS[li].tip||theme.name;
+  const box=$('levels');box.innerHTML='';
+  LEVELS.forEach((l,i)=>{const b=document.createElement('button');b.textContent=i+1;b.className=i===li?'cur':'ghost';
+    b.disabled=i>=save.unlocked;b.title=l.name;b.onclick=()=>load(i);box.appendChild(b)});
+}
+function showMsg(t,p,label,fn){overlay=true;$('mt').textContent=t;$('mp').textContent=p;const b=$('mb');b.textContent=label;b.onclick=fn;$('msg').classList.add('on');b.focus()}
+function hideMsg(){overlay=false;$('msg').classList.remove('on')}
+$('restart').onclick=()=>{if(!overlay){resetBlock();ui()}};
+$('snd').onclick=()=>setSound(!SND.on);setSound(SND.on,true);
+const KEYS={ArrowUp:[0,-1],ArrowRight:[1,0],ArrowDown:[0,1],ArrowLeft:[-1,0],w:[0,-1],d:[1,0],s:[0,1],a:[-1,0]};
+addEventListener('keydown',e=>{const k=e.key.length===1?e.key.toLowerCase():e.key;
+  if(KEYS[k]){e.preventDefault();move(...KEYS[k])}
+  else if(k==='r'&&!overlay){resetBlock();ui()}
+  else if(k==='m')setSound(!SND.on);
+  else if((k==='Enter'||k===' ')&&overlay){e.preventDefault();$('mb').click()}});
+let touch=null;
+cv.addEventListener('pointerdown',e=>{touch=[e.clientX,e.clientY]});
+cv.addEventListener('pointerup',e=>{if(!touch)return;const sx=e.clientX-touch[0],sy=e.clientY-touch[1];touch=null;
+  if(Math.hypot(sx,sy)<20)return;move(...(Math.abs(sx)>Math.abs(sy)?[Math.sign(sx),0]:[0,Math.sign(sy)]))});
+addEventListener('resize',fit);
+load(Math.min(save.unlocked-1,LEVELS.length-1));
+requestAnimationFrame(frame);
+</script>
+</body>
+</html>
