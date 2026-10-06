@@ -14,8 +14,11 @@
   .stage{position:relative;width:100%;user-select:none;-webkit-user-select:none}
   canvas{display:block;background:#0b0a12;border:2px solid var(--line);border-radius:6px;width:100%;aspect-ratio:16/10;touch-action:none;cursor:pointer}
   .msg{position:absolute;inset:0;display:none;place-content:center;gap:12px;background:rgba(11,10,18,.74);border-radius:6px;padding:16px}
-  .msg.on{display:grid}
+  .msg.on{display:grid;animation:fade .25s ease-out}
+  @keyframes fade{from{opacity:0;transform:scale(.97)}to{opacity:1;transform:none}}
+  @media (prefers-reduced-motion:reduce){.msg.on{animation:none}}
   .msg h2{margin:0;font-family:var(--display);font-weight:400;color:var(--lime);font-size:1.8rem}
+  .msg.bad h2{color:var(--pink)}
   .msg p{margin:0;color:var(--muted);max-width:44ch;justify-self:center}
   .msg .stats{color:var(--text);font-variant-numeric:tabular-nums}
   button{background:var(--lime);color:var(--bg);border:0;border-radius:6px;padding:10px 20px;font:400 1rem var(--display);cursor:pointer}
@@ -45,7 +48,7 @@
     <button class="ghost" id="snd">Sound on (M)</button>
     <button class="ghost" id="offDown" aria-label="Hit earlier">−</button><span class="off" id="off">Offset 0ms</span><button class="ghost" id="offUp" aria-label="Hit later">+</button>
   </div>
-  <p class="small">Tap any key, click or touch on the beat. If your hits feel late or early every time, nudge the offset.</p>
+  <p class="small">Tap any key, click or touch on the beat. Tapping too early or too late is a miss. If your hits feel off every time, nudge the offset.</p>
   <div class="row levels" id="levels"></div>
 </main>
 <script>
@@ -241,8 +244,8 @@ let save={best:{},done:{},offset:0};
 try{Object.assign(save,JSON.parse(localStorage.getItem('cometsSave'))||{})}catch(e){}
 function persist(){try{localStorage.setItem('cometsSave',JSON.stringify(save))}catch(e){}}
 const AUTO=/[?&]auto=1/.test(location.search);
-let li=0,L,tiles,theme,spb,mode='ready',cur=0,cp=0,t0=0,bus=null,step=0,lastStep=0,failAt=0,failOrb=null,endAt=0,cpUses=0;
-let judge=[],early=[],pops=[],parts=[],trails=[[],[]],fx=[],cam={x:0,y:0,z:1},overlayT=null,idle0=performance.now()/1000;
+let li=0,L,tiles,theme,spb,mode='ready',cur=0,cp=0,t0=0,bus=null,step=0,lastStep=0,failAt=0,failOrb=null,endAt=0,cpUses=0,combo=0,bestCombo=0,shake=0,flashA=0,flashC='#ff3b5c',failWhy='';
+let judge=[],meter=[],rings=[],early=[],pops=[],parts=[],trails=[[],[]],fx=[],cam={x:0,y:0,z:1},overlayT=null,idle0=performance.now()/1000;
 const cache={};
 const T=i=>t0+tiles[i].beat*spb;
 function songBeat(now){return(now-t0)/spb}
@@ -250,15 +253,17 @@ function songBeat(now){return(now-t0)/spb}
 function load(i){
   li=i;L=LEVELS[i];tiles=cache[i]||(cache[i]=layout(L,i));theme=THEMES[i%THEMES.length];spb=60/L.bpm;
   fx=Array.from({length:70},()=>({x:Math.random(),y:Math.random(),r:Math.random(),p:Math.random()*TAU}));
-  stopMusic();mode='ready';cur=0;cp=0;cpUses=0;judge=[];early=[];pops=[];parts=[];trails=[[],[]];failOrb=null;
+  stopMusic();mode='ready';cur=0;cp=0;cpUses=0;judge=[];early=[];pops=[];parts=[];trails=[[],[]];failOrb=null;meter=[];rings=[];combo=0;
   tiles.forEach(t=>t.hitT=-1);
   cam.x=tiles[0].x;cam.y=tiles[0].y;
   ui();levelButtons();
-  showMsg(L.name,L.tip,'',[['Play (Space)',()=>start(0)]]);
+  const b=save.best[li];
+  showMsg(L.name,L.tip,`${L.bpm} BPM · ${tiles.length-1} beats to hit${b!=null?` · best ${b.toFixed(1)}%`:''}`,[['Play (Space)',()=>start(0)]]);
 }
 function start(from){
   const a=audio();hideMsg();
-  if(from===0){judge=[];early=[];cpUses=0}else{cpUses++;judge.length=from+1;early.length=from+1}
+  combo=0;meter=[];
+  if(from===0){judge=[];early=[];cpUses=0;bestCombo=0}else{cpUses++;judge.length=from+1;early.length=from+1}
   tiles.forEach((t,i)=>{if(i>from)t.hitT=-1});
   cur=from;failOrb=null;pops=[];
   const now=clock(),lead=4*spb+.25;
@@ -304,8 +309,8 @@ function press(evT){
   if(nx>=tiles.length)return;
   const err=tp-T(nx),gap=T(nx)-T(cur),ew=Math.min(.14,.5*gap);
   if(err<-ew){
-    if(tp<T(cur))return; // way too early (count-in) is ignored
-    early[nx]=(early[nx]||0)+1;pop(nx,'Too early','#9aa0c8');return}
+    if(mode==='count')return; // taps during the count-in don't count
+    fail(now,'early');return}
   hit(nx,err,now);
 }
 function lateWin(i){return i+1<tiles.length?Math.min(.14,.5*(T(i+1)-T(i))):.14}
@@ -316,6 +321,9 @@ function hit(i,err,now){
   else if(ae<=.09){k=1;txt=err<0?'Early':'Late';col='#ffd166'}
   else{k=2;txt=err<0?'Early!':'Late!';col='#ff8a5c'}
   judge[i]=k;cur=i;t.hitT=now;
+  combo=k<2?combo+1:0;bestCombo=Math.max(bestCombo,combo);
+  meter.push({e:err,c:col,t:performance.now()/1000});if(meter.length>24)meter.shift();
+  rings.push({x:t.x,y:t.y,c:i%2?theme.b:theme.a,t:performance.now()/1000});
   if(k)pop(i,txt,col);else if(i%4===0||i===tiles.length-1)pop(i,txt,col,.7);
   const c=i%2?theme.b:theme.a;
   for(let j=0;j<12;j++){const an=Math.random()*TAU,sp=.6+Math.random()*1.6;parts.push({x:t.x,y:t.y,vx:Math.cos(an)*sp,vy:Math.sin(an)*sp,life:.5+Math.random()*.3,t:0,c})}
@@ -325,34 +333,39 @@ function hit(i,err,now){
   ui();
 }
 function pop(i,text,col,size=1){pops.push({x:tiles[i].x,y:tiles[i].y,text,col,t:performance.now()/1000,size})}
-function fail(now){
-  mode='fail';failAt=performance.now()/1000;sfx.fail();stopMusic();
+function fail(now,why='late'){
+  mode='fail';failWhy=why;failAt=performance.now()/1000;sfx.fail();stopMusic();
+  shake=1;flashA=.45;flashC='#ff3b5c';combo=0;
+  if(tiles[cur+1])pop(cur+1,why==='early'?'Too early!':why==='pause'?'Paused':'Too late!','#ff5c6e',1.15);
   const t=tiles[cur],th=t.ain+t.dir*Math.PI*t.s*(now-T(cur))/spb,v=t.dir*Math.PI*t.s/spb;
   failOrb={x:t.x+Math.cos(th),y:t.y+Math.sin(th),vx:-Math.sin(th)*v,vy:Math.cos(th)*v,t:0,c:cur%2?theme.a:theme.b};
   setTimeout(()=>{if(mode!=='fail')return;
     const pct=Math.floor(100*cur/(tiles.length-1));
-    showMsg('Missed!',`You made it ${pct}% of the way. ${cp?'Back to the last checkpoint.':'Back to the start.'}`,'',
-      [['Retry (Space)',()=>start(cp)]].concat(cp?[['Restart level',()=>start(0)]]:[]))},700);
+    showMsg(why==='early'?'Too early!':why==='pause'?'Paused':'Missed!',
+      `${why==='early'?'You tapped before the comet reached the tile. ':why==='pause'?'The game stops when you leave the tab. ':'The comet flew past the tile. '}You made it ${pct}% of the way.`,
+      cp?'Retry starts from the last checkpoint.':'Retry starts from the beginning.',
+      [['Retry (Space)',()=>start(cp)]].concat(cp?[['Restart level',()=>start(0)]]:[]),why!=='pause')},700);
 }
 function accuracy(upto=cur){
   let s=0,n=0;for(let i=1;i<=upto;i++){if(judge[i]==null)continue;s+=[100,80,55][judge[i]];n++;n+=early[i]||0}
   return n?s/n:null}
 function win(){
-  mode='win';endAt=performance.now()/1000;sfx.win(L.root);
+  mode='win';endAt=performance.now()/1000;sfx.win(L.root);flashA=.35;flashC='#ffffff';
+  {const t=tiles[tiles.length-1];for(let j=0;j<60;j++){const an=Math.random()*TAU,sp=1+Math.random()*3.5;parts.push({x:t.x,y:t.y,vx:Math.cos(an)*sp,vy:Math.sin(an)*sp,life:.8+Math.random()*.8,t:0,c:[theme.a,theme.b,'#ffffff'][j%3]})}}
   const acc=accuracy(),best=save.best[li];
   if(best==null||acc>best)save.best[li]=acc;save.done[li]=1;persist();
-  const c=[0,0,0];judge.forEach(k=>{if(k!=null)c[k]++});const te=early.reduce((s,v)=>s+(v||0),0);
+  const c=[0,0,0];judge.forEach(k=>{if(k!=null)c[k]++});
   setTimeout(()=>{if(mode!=='win')return;
     showMsg(li===LEVELS.length-1?'You beat them all!':'Level clear!',
       `${acc.toFixed(1)}% accuracy${best==null||acc>best?' · new best':''}${cpUses?` · ${cpUses} checkpoint retr${cpUses>1?'ies':'y'}`:''}`,
-      `${c[0]} perfect · ${c[1]} close · ${c[2]} rough · ${te} too early`,
+      `${c[0]} perfect · ${c[1]} close · ${c[2]} rough · best combo ${bestCombo}`,
       li<LEVELS.length-1?[['Next level (Space)',next],['Replay',()=>start(0)]]:[['Play again (Space)',()=>start(0)],['Level 1',()=>load(0)]])},1300);
   levelButtons();
 }
 function next(){if(li<LEVELS.length-1)load(li+1);else start(0)}
 
 // ---- overlay + buttons ----
-function showMsg(t,p,s,btns){$('mt').textContent=t;$('mp').textContent=p;$('ms').textContent=s;const b=$('mbtns');b.innerHTML='';
+function showMsg(t,p,s,btns,bad=false){$('msg').classList.toggle('bad',bad);$('mt').textContent=t;$('mp').textContent=p;$('ms').textContent=s;const b=$('mbtns');b.innerHTML='';
   btns.forEach(([label,fn],i)=>{const e=document.createElement('button');e.textContent=label;if(i)e.className='ghost';
     e.onclick=ev=>{ev.stopPropagation();e.blur();fn()};b.appendChild(e)});$('msg').classList.add('on')}
 function hideMsg(){$('msg').classList.remove('on')}
@@ -384,6 +397,7 @@ $('msg').addEventListener('pointerdown',e=>{if(e.target.tagName==='BUTTON')retur
 const cv=$('c'),ctx=cv.getContext('2d');let W=0,H=0,DPR=1;
 function fit(){DPR=Math.min(2,devicePixelRatio||1);const r=cv.getBoundingClientRect();W=r.width;H=r.height;cv.width=Math.round(W*DPR);cv.height=Math.round(H*DPR)}
 addEventListener('resize',fit);
+document.addEventListener('visibilitychange',()=>{if(document.hidden&&(mode==='play'||mode==='count'))fail(clock(),'pause')});
 let lastF=performance.now()/1000;
 function frame(){
   const pf=performance.now()/1000,dt=Math.min(.05,pf-lastF);lastF=pf;
@@ -414,7 +428,8 @@ function draw(now,dt,pf){
   const U=Math.min(W,H)/6,ahead=tiles[Math.min(tiles.length-1,cur+3)],pv=tiles[cur];
   const tx=pv.x*.65+ahead.x*.35,ty=pv.y*.65+ahead.y*.35,k=1-Math.exp(-dt*4.5);
   cam.x+=(tx-cam.x)*k;cam.y+=(ty-cam.y)*k;
-  const z=U*(1+.025*pulse*(mode==='play'?1:0)),sx=x=>(x-cam.x)*z+W/2,sy=y=>(y-cam.y)*z+H/2;
+  shake=Math.max(0,shake-dt*2.2);const shx=(Math.random()-.5)*shake*14,shy=(Math.random()-.5)*shake*14;
+  const z=U*(1+.025*pulse*(mode==='play'?1:0)),sx=x=>(x-cam.x)*z+W/2+shx,sy=y=>(y-cam.y)*z+H/2+shy;
   // tiles
   const lo=Math.max(0,cur-24),hi=Math.min(tiles.length-1,cur+50);
   X.lineJoin='round';X.lineCap='butt';
@@ -423,14 +438,14 @@ function draw(now,dt,pf){
     const bx=n?(n.x+t.x)/2:t.x+(t.x-p.x)/2,by=n?(n.y+t.y)/2:t.y+(t.y-p.y)/2;
     X.beginPath();X.moveTo(sx(ax),sy(ay));X.lineTo(sx(t.x),sy(t.y));X.lineTo(sx(bx),sy(by))};
   const alphaOf=i=>i<=cur?Math.max(0,1-(cur-i)/24)*.45:Math.max(0,1-Math.max(0,i-cur-30)/20);
-  for(let i=lo;i<=hi;i++){const al=alphaOf(i);if(al<=0)continue;X.globalAlpha=al;seg(i);X.strokeStyle=theme.edge;X.lineWidth=z*.5+5;X.stroke()}
+  for(let i=lo;i<=hi;i++){const al=alphaOf(i);if(al<=0)continue;X.globalAlpha=al;seg(i);X.strokeStyle=theme.edge;X.lineWidth=z*.44+5;X.stroke()}
   for(let i=lo;i<=hi;i++){const al=alphaOf(i);if(al<=0)continue;const t=tiles[i];X.globalAlpha=al;seg(i);
     const flash=t.hitT>0?Math.max(0,1-(now-t.hitT)/.35):0;
-    X.strokeStyle=flash>0?mix(i%2?theme.alt:theme.tile,'#ffffff',flash*.8):(i%2?theme.alt:theme.tile);X.lineWidth=z*.5;X.stroke()}
+    X.strokeStyle=flash>0?mix(i%2?theme.alt:theme.tile,'#ffffff',flash*.8):(i%2?theme.alt:theme.tile);X.lineWidth=z*.44;X.stroke()}
   X.globalAlpha=1;
   // next-tile hint ring and tile icons
   for(let i=Math.max(1,cur);i<=hi;i++){const t=tiles[i],al=alphaOf(i);if(al<=0)continue;X.globalAlpha=al;const x=sx(t.x),y=sy(t.y);
-    if(t.swirl&&i>cur)drawSwirl(x,y,z*.15,t.dir);
+    if(t.swirl&&i>cur){X.globalAlpha=al*.75;drawSwirl(x,y,z*.11,t.dir);X.globalAlpha=al}
     if(t.mark&&i>=cur)drawSpeed(x,y,z*.16,t);
     if(t.cp&&i>cur){X.fillStyle='#ffffff';X.beginPath();X.moveTo(x,y-z*.12);X.lineTo(x+z*.09,y);X.lineTo(x,y+z*.12);X.lineTo(x-z*.09,y);X.closePath();X.globalAlpha=al*.7;X.fill()}
     if(i===tiles.length-1){X.strokeStyle='#ffffff';X.lineWidth=3;X.globalAlpha=al*(.5+.5*pulse);X.beginPath();X.arc(x,y,z*.3,0,TAU);X.stroke()}
@@ -439,10 +454,14 @@ function draw(now,dt,pf){
   if(mode==='play'||mode==='count'){const n=tiles[cur+1];if(n){X.strokeStyle=hexA('#ffffff',.25+.35*pulse);X.lineWidth=2;X.beginPath();X.arc(sx(n.x),sy(n.y),z*.24,0,TAU);X.stroke()}}
   // orbit ring
   X.strokeStyle=hexA('#ffffff',.06);X.lineWidth=1;X.beginPath();X.arc(sx(pv.x),sy(pv.y),z,0,TAU);X.stroke();
+  // hit ripples
+  rings=rings.filter(r=>pf-r.t<.45);
+  for(const r of rings){const a=(pf-r.t)/.45;X.globalAlpha=(1-a)*.8;X.strokeStyle=r.c;X.lineWidth=3*(1-a)+1;X.beginPath();X.arc(sx(r.x),sy(r.y),z*(.2+a*.45),0,TAU);X.stroke()}
+  X.globalAlpha=1;X.globalCompositeOperation='lighter';
   // particles
   for(const p of parts){p.t+=dt;p.x+=p.vx*dt;p.y+=p.vy*dt;p.vx*=.93;p.vy*=.93;const l=1-p.t/p.life;if(l<=0)continue;
     X.globalAlpha=l;X.fillStyle=p.c;X.beginPath();X.arc(sx(p.x),sy(p.y),Math.max(.5,z*.05*l),0,TAU);X.fill()}
-  parts=parts.filter(p=>p.t<p.life);X.globalAlpha=1;
+  parts=parts.filter(p=>p.t<p.life);X.globalAlpha=1;X.globalCompositeOperation='source-over';
   // comets
   const pivotCol=cur%2?theme.b:theme.a,moveCol=cur%2?theme.a:theme.b;
   const th=orbAngle(now),mx=pv.x+Math.cos(th),my=pv.y+Math.sin(th);
@@ -450,9 +469,11 @@ function draw(now,dt,pf){
   pushTrail(pivIdx,pv.x,pv.y,pf);
   if(mode!=='fail')pushTrail(movIdx,mx,my,pf);
   drawTrail(trails[pivIdx],pivotCol,sx,sy,z,pf);drawTrail(trails[movIdx],moveCol,sx,sy,z,pf);
+  X.globalCompositeOperation='lighter';
   drawOrb(sx(pv.x),sy(pv.y),z,pivotCol,1+.12*pulse);
   if(mode==='fail'&&failOrb){const f=failOrb;f.t+=dt;f.x+=f.vx*dt;f.y+=f.vy*dt;X.globalAlpha=Math.max(0,1-f.t/1.2);drawOrb(sx(f.x),sy(f.y),z,f.c,1);X.globalAlpha=1}
   else drawOrb(sx(mx),sy(my),z,moveCol,1);
+  X.globalCompositeOperation='source-over';
   // judgement pops
   X.textAlign='center';X.textBaseline='middle';
   pops=pops.filter(p=>pf-p.t<.8);
@@ -462,6 +483,19 @@ function draw(now,dt,pf){
   // countdown
   if(mode==='count'){const left=Math.ceil((T(cur)-now)/spb-1e-3);if(left<=3&&left>=1){const f=1-((T(cur)-now)/spb-(left-1));
     X.globalAlpha=.5*Math.max(0,1-f);X.fillStyle='#ffffff';X.font=`400 ${Math.round(H*.18*(1+f*.3))}px Bungee, Impact, sans-serif`;X.fillText(left,W/2,H*.22);X.globalAlpha=1}}
+  // combo
+  if(combo>=8&&(mode==='play'||mode==='win')){X.textAlign='left';X.fillStyle=hexA('#ffffff',.85);X.font=`400 ${Math.round(16+Math.min(10,combo/10))}px Bungee, Impact, sans-serif`;
+    X.fillText(combo+' combo',12,24)}
+  // timing meter: where each recent hit landed, early to the left
+  if(mode!=='ready'){const mw=Math.min(240,W*.5),mx0=W/2-mw/2,my0=H-16;
+    X.fillStyle=hexA('#000000',.3);X.fillRect(mx0,my0-5,mw,10);
+    X.fillStyle=hexA('#c6f432',.25);X.fillRect(W/2-mw*.045/.28,my0-5,mw*.09/.28,10);
+    X.fillStyle=hexA('#ffffff',.8);X.fillRect(W/2-1,my0-8,2,16);
+    for(const m of meter){const a=1-(pf-m.t)/3;if(a<=0)continue;X.globalAlpha=a;X.fillStyle=m.c;X.fillRect(W/2+Math.max(-.14,Math.min(.14,m.e))/.28*mw-1.5,my0-6,3,12)}
+    X.globalAlpha=1}
+  // screen flash
+  flashA=Math.max(0,flashA-dt*1.4);if(flashA>0){const v=X.createRadialGradient(W/2,H/2,Math.min(W,H)*.2,W/2,H/2,Math.max(W,H)*.75);
+    v.addColorStop(0,hexA(flashC,0));v.addColorStop(1,hexA(flashC,flashA));X.fillStyle=v;X.fillRect(0,0,W,H)}
   // progress bar
   const prog=cur/(tiles.length-1);X.fillStyle=hexA('#ffffff',.12);X.fillRect(0,0,W,4);X.fillStyle=theme.a;X.fillRect(0,0,W*prog,4);
   if(mode==='play'||mode==='count'||mode==='win'){X.textAlign='right';X.fillStyle=hexA('#ffffff',.7);X.font='500 13px Rubik, sans-serif';X.fillText(Math.floor(prog*100)+'%',W-10,18)}
