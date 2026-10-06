@@ -11,7 +11,7 @@
   h1{margin:0;font-family:var(--display);font-weight:400;color:var(--lime);font-size:2.4rem}
   .bar{display:flex;flex-wrap:wrap;justify-content:space-between;gap:4px 12px;width:100%;color:var(--muted);font-variant-numeric:tabular-nums}
   .bar b{color:var(--text)}
-  .scores{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;width:100%}
+  .scores{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;width:100%}
   .chip{background:var(--panel);border:2px solid var(--line);border-radius:6px;padding:4px 6px;display:grid;font-variant-numeric:tabular-nums;transition:border-color .2s}
   .chip .n{font-size:.75rem;text-transform:uppercase;letter-spacing:.1em;color:var(--muted);display:flex;gap:5px;align-items:center;justify-content:center}
   .chip .n i{width:10px;height:10px;border-radius:50%;display:inline-block}
@@ -34,7 +34,7 @@
   .row{display:flex;flex-wrap:wrap;gap:8px;justify-content:center;align-items:center}
   .skills button{padding:6px 12px}
   .skills button.cur{background:var(--pink);color:var(--bg);border-color:var(--pink)}
-  .pads{display:grid;grid-template-columns:1fr 1fr;gap:8px;width:100%}
+  .pads{display:grid;grid-template-columns:1fr 2fr 2fr 1fr;gap:8px;width:100%}
   .pads button{padding:16px;font-size:1.2rem;touch-action:none}
   .pads #bJump{background:#ff5c8a}
   .pads #bDuck{background:#4cd9ff}
@@ -55,7 +55,7 @@
     <canvas id="c"></canvas>
     <div class="msg" id="msg"><h2 id="mt"></h2><p id="mp"></p><div class="stats" id="ms"></div><div class="row" id="mbtns"></div></div>
   </div>
-  <div class="pads"><button id="bJump">Jump</button><button id="bDuck">Duck</button></div>
+  <div class="pads"><button class="ghost" id="bIn" aria-label="Step toward the tower">◀</button><button id="bJump">Jump</button><button id="bDuck">Duck</button><button class="ghost" id="bOut" aria-label="Step toward the edge">▶</button></div>
   <p class="tip" id="tip"></p>
   <div class="row">
     <button class="ghost" id="restart">Restart (R)</button>
@@ -64,7 +64,7 @@
     <button class="ghost" id="skip" hidden>Skip to result</button>
   </div>
   <div class="row"><span class="small">Rival skill</span><div class="row skills" id="skills"></div></div>
-  <p class="small">Everyone runs up the spiral on their own. Jump pink hurdles, gaps and rolling drums with Space, W or ↑. Hold S, ↓ or Shift to duck under blue beams. Laser gates switch between low and high, so check their colour. On a touchscreen, use the pads or tap the top or bottom half of the tower. Every tower is built fresh each time.</p>
+  <p class="small">Everyone runs up the spiral on their own. Step between the three lanes with ← and → (or A and D): left is toward the tower, right is toward the edge. Jump pink hurdles, gaps and rolling drums with Space, W or ↑. Hold S, ↓ or Shift to duck under blue beams. Grey walls can only be dodged. Laser gates switch between low and high, so check their colour. On a touchscreen, use the pads, or swipe sideways, tap the top half to jump and hold the bottom half to duck. Every tower is built fresh each time.</p>
 </main>
 <script>
 const $=id=>document.getElementById(id);
@@ -73,10 +73,10 @@ const $=id=>document.getElementById(id);
 // and the ramp height under them (s*PITCH). Lanes are just radii, so all four share one track.
 const W=960,H=600,CX=480,CY0=318,FOC=560,DCAM=640;
 const R0=120,R1=272,RM=196,TURN=Math.PI*2*RM,RISE=210,PITCH=RISE/TURN;
-const LANES=[252,218,184,150],SPEED=150,STAND=68,DUCKH=32,G=3000,V0=900;
+const LW=(R1-R0)/3,laneLo=j=>R0+LW*j,laneHi=j=>R0+LW*(j+1),laneR=j=>R0+LW*(j+.5),WALL=118,SPEED=150,STAND=68,DUCKH=32,G=3000,V0=900;
 const HURDLE=[0,34],BEAM=[54,80];
-const COLORS=['#c6f432','#ffb347','#b48cff','#7dffcf'];
-const NAMES=['You','Pip','Rook','Juno'];
+const COLORS=['#c6f432','#ffb347','#b48cff'];
+const NAMES=['You','Pip','Rook'];
 const TAU=Math.PI*2;
 const hexA=(h,a)=>{const n=parseInt(h.slice(1),16);return`rgba(${n>>16},${n>>8&255},${n&255},${a})`};
 const shade=(h,k)=>{const n=parseInt(h.slice(1),16),c=v=>Math.max(0,Math.min(255,Math.round(v*k)));return`rgb(${c(n>>16)},${c(n>>8&255)},${c(n&255)})`};
@@ -87,18 +87,18 @@ function rng(s){return()=>{s|=0;s=s+0x6D2B79F5|0;let t=Math.imul(s^s>>>15,1|s);t
 // ---- the five towers: own look, music, length and which hazards appear ----
 const TOWERS=[
 {name:'Gearworks',sky:['#4a2c16','#140a04'],tower:'#6e5a46',band:'#ff7a3d',ramp:'#8a6238',ramp2:'#7a5532',rim:'#3d2816',accent:'#ffcf6b',bg:'gears',bpm:108,root:50,wave:'triangle',
- kinds:['hurdle','hurdle','beam'],len:3600,tip:'Pink hurdles: jump. Blue beams: duck. First to the top wins.'},
+ kinds:['hurdle','hurdle','beam'],len:5600,tip:'Pink hurdles: jump. Blue beams: duck. First to the top wins.'},
 {name:'Tidal Rig',sky:['#0d5577','#031726'],tower:'#3e6f80',band:'#5fd4ff',ramp:'#3a6f86',ramp2:'#2f6178',rim:'#173847',accent:'#8fe3ff',bg:'waves',bpm:100,root:53,wave:'sine',
- kinds:['hurdle','beam','gap','gap'],len:4100,tip:'Gaps in the ramp now. Jump them or fall back a stretch.'},
+ kinds:['hurdle','beam','gap','gap','wall'],len:6400,tip:'Gaps open in some lanes, and grey walls can only be dodged. Sidestep with ← and →.'},
 {name:'Neon Spindle',sky:['#33104f','#07021a'],tower:'#3a2466',band:'#ff5cf0',ramp:'#33205f',ramp2:'#2a1950',rim:'#130a27',accent:'#ff5cf0',bg:'grid',bpm:124,root:48,wave:'sawtooth',
- kinds:['hurdle','beam','gap','gate','gate'],len:4500,tip:'Laser gates flip between low and high. Read the colour as you arrive.'},
+ kinds:['hurdle','beam','gap','gate','gate','wall'],len:7000,tip:'Laser gates flip between low and high. Read the colour as you arrive.'},
 {name:'Glacier Wheel',sky:['#8cbbe0','#1c3550'],tower:'#9fbdd4',band:'#ffffff',ramp:'#d9ecf8',ramp2:'#c6dff0',rim:'#7fa3bf',accent:'#e9f6ff',bg:'snow',bpm:96,root:55,wave:'sine',
- kinds:['hurdle','beam','gap','gate'],rollers:3.6,len:4800,tip:'Drums roll down the ramp toward you. Hop them.'},
+ kinds:['hurdle','beam','gap','gate','wall'],rollers:3.4,len:7600,tip:'Drums roll down the ramp toward you. Hop them.'},
 {name:'Solar Crown',sky:['#22103a','#000000'],tower:'#3b2f58',band:'#ffb347',ramp:'#3a2f56',ramp2:'#2d2443',rim:'#140f22',accent:'#ffd27a',bg:'space',bpm:128,root:45,wave:'square',
- kinds:['hurdle','beam','gap','gate','hurdle'],rollers:2.7,len:5200,tip:'The final tower. Everything, closer together.'},
+ kinds:['hurdle','beam','gap','gate','hurdle','wall'],rollers:2.6,len:8200,tip:'The final tower. Everything, closer together.'},
 ];
-// Rival skill: timing wobble (seconds) and the chance of misreading a hazard.
-const SKILLS=[{name:'Easy',jit:.11,wrong:.07},{name:'Normal',jit:.07,wrong:.03},{name:'Hard',jit:.045,wrong:.012},{name:'Brutal',jit:.025,wrong:.004}];
+// Rival skill: timing wobble (seconds), the chance of misreading a hazard, and how often they sidestep.
+const SKILLS=[{name:'Easy',jit:.11,wrong:.07,dodge:.3},{name:'Normal',jit:.07,wrong:.03,dodge:.55},{name:'Hard',jit:.045,wrong:.012,dodge:.8},{name:'Brutal',jit:.025,wrong:.004,dodge:.95}];
 let skill=1;try{const v=localStorage.getItem('spindleSkill');if(v!=null&&SKILLS[+v])skill=+v}catch(e){}
 
 // ---- sound: everything is synthesised with Web Audio, no files ----
@@ -135,6 +135,7 @@ const sfx={
   land(q){const v=near(q);if(v<.02)return;tone('sine',140,60,.1,.3*v,0,panQ(q));noise(700,.8,.05,.15*v,0,'lowpass',0,panQ(q))},
   step(){noise(1200+Math.random()*400,2,.03,.05,0,'bandpass')},
   duck(){tone('triangle',420,200,.08,.1);noise(1800,2,.05,.08)},
+  side(){noise(2600,1.5,.07,.1,0,'bandpass',900);tone('sine',520,700,.05,.04)},
   hit(q){const v=q.p===0?1:near(q)*1.3;if(v<.02)return;const pn=panQ(q);tone('square',200,80,.18,.16*v,0,pn);tone('sine',90,40,.25,.5*v,0,pn);noise(2500,1,.12,.3*v,0,'bandpass',600,pn);
     if(q.p===0)tone('triangle',1800,1700,.25,.05,.05)},
   fall(q){const v=q.p===0?1:near(q)*1.3;if(v<.02)return;tone('sine',900,120,.9,.12*v,0,panQ(q));tone('triangle',1200,180,.8,.04*v,.05,panQ(q))},
@@ -166,7 +167,7 @@ const cv=$('c'),cx=cv.getContext('2d');let dpr=1;
 function resize(){dpr=Math.min(2,window.devicePixelRatio||1);cv.width=W*dpr;cv.height=H*dpr}
 resize();addEventListener('resize',resize);
 let tw=TOWERS[0],round=0,state='menu',clock=0,countT=0,L=3600,obs=[],gaps=[],rollers=[],nextRoller=0,pl=[],fx=[],amb=[];
-let pts=[0,0,0,0],finishOrder=[],firstFinish=-1,endT=0,shake=0,flash=0,timeScale=1,banner=null,cam={s:0,y:0};
+let pts=[0,0,0],finishOrder=[],firstFinish=-1,endT=0,shake=0,flash=0,timeScale=1,banner=null,cam={s:0,y:0};
 const input={jumpBuf:0,duckKey:false,duckPad:false,duckTouch:false};
 let best=0;
 function loadBest(){best=0;try{best=+localStorage.getItem('spindleBest_'+skill)||0}catch(e){}
@@ -176,74 +177,93 @@ function renderSkills(el){el.innerHTML='';SKILLS.forEach((k,i)=>{const b=documen
 function setSkill(i){skill=i;try{localStorage.setItem('spindleSkill',i)}catch(e){}loadBest();document.querySelectorAll('.skills').forEach(renderSkills);sfx.click()}
 
 // ---- procedural tower ----
-// Hazards are laid out from a fresh seed each round, spaced so every one can be cleared,
-// with the gaps between them shrinking from tower to tower.
+// Hazards come in rows laid out from a fresh seed each round. A row fills one, two or all
+// three lanes; walls can only be dodged, and a row never walls off every lane.
 function genTrack(seed){
-  const R=rng(seed),r=round;L=tw.len;obs=[];gaps=[];let s=420,id=0,last='';
-  while(s<L-260){let k=tw.kinds[Math.floor(R()*tw.kinds.length)];if(k==='gap'&&last==='gap')k='hurdle';
-    if(k==='gap'){const len=30+R()*22+r*4;const g={id:id++,kind:'gap',s,len};obs.push(g);gaps.push(g);s+=len}
-    else if(k==='gate')obs.push({id:id++,kind:'gate',s,per:1.3+R()*.9,ph:R()*10});
-    else{obs.push({id:id++,kind:k,s});
-      if(k==='hurdle'&&r>=1&&R()<.28){s+=42;obs.push({id:id++,kind:'hurdle',s})}
-      if(k==='beam'&&r>=2&&R()<.25){s+=60;obs.push({id:id++,kind:'beam',s})}}
-    last=k;s+=(200-r*16)+R()*(250-r*30)}}
-const inGap=s=>{for(const g of gaps)if(s>g.s&&s<g.s+g.len)return g;return null};
+  const R=rng(seed),r=round;L=tw.len;obs=[];gaps=[];let s=420,id=0,row=0;
+  const pick=()=>tw.kinds[Math.floor(R()*tw.kinds.length)];
+  while(s<L-260){const n=R()<.45-r*.05?1:R()<.75?2:3,lanes=[0,1,2].sort(()=>R()-.5).slice(0,n);let walls=0,depth=0;
+    const same=R()<.5,k0=pick();
+    for(const j of lanes){let k=same?k0:pick();if(k==='wall'&&(walls>=1&&n===3||walls>=2))k='hurdle';if(k==='wall')walls++;
+      if(k==='gap'){const len=30+R()*22+r*4;const g={id:id++,row,lane:j,kind:'gap',s,len};obs.push(g);gaps.push(g);depth=Math.max(depth,len)}
+      else if(k==='gate')obs.push({id:id++,row,lane:j,kind:'gate',s,per:1.3+R()*.9,ph:R()*10});
+      else obs.push({id:id++,row,lane:j,kind:k,s})}
+    row++;s+=depth+(190-r*14)+R()*(230-r*26)}
+  obs.sort((a,b)=>a.s-b.s)}
+const laneOf=q=>Math.max(0,Math.min(2,Math.round(q.lr)));
+const inGap=(s,j)=>{for(const g of gaps)if(g.lane===j&&s>g.s&&s<g.s+g.len)return g;return null};
 const gateHigh=(o,t)=>Math.floor((t+o.ph)/o.per)%2===1;
 const gateSoon=(o,t)=>{const u=((t+o.ph)/o.per)%1;return u>1-.35/o.per};
 
 // ---- players ----
-function newPlayer(p){return{p,s:0,lane:LANES[p],y:0,vy:0,duck:false,duckT:0,stun:0,inv:0,kb:0,fall:0,fallY:0,fin:-1,step:0,squash:0,blink:Math.random()*3,
-  ai:{dec:{}},cheer:0}}
+const START_LANE=[2,1,0];
+function newPlayer(p){return{p,s:0,lane:START_LANE[p],lr:START_LANE[p],y:0,vy:0,duck:false,duckT:0,stun:0,inv:0,kb:0,fall:0,fallY:0,fin:-1,step:0,squash:0,blink:Math.random()*3,
+  ai:{dec:{},rows:{}},cheer:0}}
 const bodyH=q=>STAND-(STAND-DUCKH)*q.duckT;
 const grounded=q=>q.y<=0&&q.vy<=0;
 function doJump(q){if(q.fall>0||q.stun>0||!grounded(q)||q.fin>=0)return false;q.vy=V0;q.y=.01;q.duck=false;q.squash=-1;sfx.jump(q);return true}
+function shift(q,dir){if(q.fall>0||q.fin>=0)return;const n=Math.max(0,Math.min(2,q.lane+dir));if(n!==q.lane){q.lane=n;if(q.p===0)sfx.side()}}
 function hit(q){q.stun=.45;q.inv=1.1;q.kb=.22;q.squash=1;q.vy=Math.max(q.vy,320);q.y=Math.max(q.y,.01);sfx.hit(q);burst(q,COLORS[q.p],16);
   fx.push({kind:'star',q,t:0,life:.9});if(q.p===0){shake=1;flash=.6}}
 function updatePlayer(q,dt){
   q.blink-=dt;if(q.blink<0)q.blink=2+Math.random()*3;q.squash*=Math.pow(.002,dt);q.cheer=Math.max(0,q.cheer-dt);
-  if(q.fall>0){q.fall-=dt;q.fallY-=600*dt*(1.2-q.fall);if(q.fall<=0){const g=inGap(q.s)||{s:q.s};q.s=g.s-45;q.fallY=0;q.y=0;q.vy=0;q.inv=1;if(q.p===0)sfx.respawn()}return}
+  if(q.fall>0){q.fall-=dt;q.fallY-=600*dt*(1.2-q.fall);if(q.fall<=0){const g=inGap(q.s,laneOf(q))||{s:q.s};q.s=g.s-45;q.fallY=0;q.y=0;q.vy=0;q.inv=1;q.ai.dec={};q.ai.rows={};if(q.p===0)sfx.respawn()}return}
   q.inv=Math.max(0,q.inv-dt);q.stun=Math.max(0,q.stun-dt);
+  q.lr+=(q.lane-q.lr)*Math.min(1,dt*15);
   const wantDuck=q.duck&&grounded(q)&&q.stun<=0;q.duckT+=((wantDuck?1:0)-q.duckT)*Math.min(1,dt*28);
   if(q.y>0||q.vy>0){q.vy-=G*dt;q.y+=q.vy*dt;if(q.y<=0){q.y=0;q.vy=0;q.squash=.7;sfx.land(q)}}
   let v=0;if(q.fin>=0)v=q.s<L+70?SPEED*.6:0;else if(q.kb>0){q.kb-=dt;v=-170}else if(q.stun<=0)v=SPEED*(1-q.duckT*.25);
   if(state!=='play'&&state!=='done')v=0;
   q.s=Math.max(0,q.s+v*dt);
   if(v>0&&grounded(q)){q.step+=v*dt;if(q.step>34){q.step=0;if(q.p===0)sfx.step()}}
-  if(grounded(q)&&inGap(q.s)&&q.fin<0){q.fall=1.1;q.fallY=0;sfx.fall(q);if(q.p===0)shake=.6}
+  if(grounded(q)&&Math.abs(q.lr-q.lane)<.35&&inGap(q.s,laneOf(q))&&q.fin<0){q.fall=1.1;q.fallY=0;sfx.fall(q);if(q.p===0)shake=.6}
   if(q.fin<0&&q.s>=L&&state==='play'){q.fin=clock;finishOrder.push(q.p);q.cheer=99;if(firstFinish<0)firstFinish=clock;
-    if(q.p===0){sfx.finish(finishOrder.length===1);banner={text:['1ST!','2ND!','3RD!','4TH'][finishOrder.length-1],t:0}}}}
-// a hazard hits whoever overlaps it unless they are over it (low) or under it (high)
+    if(q.p===0){sfx.finish(finishOrder.length===1);banner={text:['1ST!','2ND!','3RD!'][finishOrder.length-1],t:0}}}}
+// a hazard hits whoever overlaps its lane unless they are over it (low) or under it (high)
 function collide(q){
   if(q.fall>0||q.inv>0||q.fin>=0)return;
-  const top=q.y+bodyH(q),over=(lo,hi)=>q.y<hi&&top>lo;
+  const top=q.y+bodyH(q),over=(lo,hi)=>q.y<hi&&top>lo,inLane=j=>Math.abs(q.lr-j)<.62;
   for(const o of obs){const d=o.s-q.s;if(d<-20)continue;if(d>30)break;
-    if(Math.abs(d)>17)continue;
-    if(o.kind==='hurdle'&&over(...HURDLE)||o.kind==='beam'&&over(...BEAM)||o.kind==='gate'&&over(...(gateHigh(o,clock)?BEAM:HURDLE))){hit(q);return}}
-  for(const r of rollers)if(Math.abs(r.s-q.s)<26&&over(0,36)){hit(q);return}}
-// rivals read the hazards ahead with a little timing wobble and the odd misread
+    if(Math.abs(d)>17||!inLane(o.lane))continue;
+    if(o.kind==='hurdle'&&over(...HURDLE)||o.kind==='beam'&&over(...BEAM)||o.kind==='wall'&&over(0,WALL)||o.kind==='gate'&&over(...(gateHigh(o,clock)?BEAM:HURDLE))){hit(q);return}}
+  for(const r of rollers)if(Math.abs(r.s-q.s)<26&&inLane(r.lane)&&over(0,36)){hit(q);return}}
+// Rivals look at the next row of hazards, sometimes sidestep into the easiest lane, and
+// otherwise jump or duck with a little timing wobble and the odd misread.
+const COST={hurdle:1,beam:1,gate:1.2,gap:1.4,wall:99};
 function updateAI(q){
   if(q.fall>0||q.stun>0||q.fin>=0)return;const sk=SKILLS[skill];
   const dec=o=>q.ai.dec[o.id]||(q.ai.dec[o.id]={jit:gauss()*sk.jit,wrong:Math.random()<sk.wrong,done:false});
-  let duck=false;
-  for(const o of obs){const d=o.s-q.s;if(d<-30)continue;if(d>260)break;const D=dec(o),ta=d/SPEED;
+  const next=obs.find(o=>o.s-q.s>8);
+  if(next&&!q.ai.rows[next.row]){const ta=(next.s-q.s)/SPEED,row=obs.filter(o=>o.row===next.row),cost=[0,0,0];
+    row.forEach(o=>cost[o.lane]+=COST[o.kind]);
+    for(const r of rollers)if(r.s>q.s&&r.s-q.s<220)cost[r.lane]+=1;
+    const reach=[0,1,2].filter(j=>Math.abs(j-q.lane)*.17<ta-.08);
+    let pickL=q.lane;
+    if(cost[q.lane]>=99||Math.random()<sk.dodge){pickL=reach.sort((a,b)=>cost[a]-cost[b]||Math.abs(a-q.lane)-Math.abs(b-q.lane))[0]??q.lane;
+      if(cost[q.lane]>=99&&Math.random()<sk.wrong)pickL=q.lane}
+    q.ai.rows[next.row]={lane:pickL}}
+  // only step across once nothing is beside you in the lane you're stepping into
+  if(next&&q.ai.rows[next.row]){const want=q.ai.rows[next.row].lane;if(want!==q.lane){const dir=Math.sign(want-q.lane),j=q.lane+dir;
+    if(!obs.some(o=>o.lane===j&&o.row!==next.row&&Math.abs(o.s-q.s)<24)&&!rollers.some(r=>r.lane===j&&Math.abs(r.s-q.s)<40)&&!inGap(q.s,j)&&!inGap(q.s+25,j))shift(q,dir)}}
+  let duck=false;const me=q.lane;
+  for(const o of obs){const d=o.s-q.s;if(d<-30)continue;if(d>260)break;if(o.lane!==me)continue;const D=dec(o),ta=d/SPEED;
     let high=o.kind==='beam'||(o.kind==='gate'&&gateHigh(o,clock+Math.max(0,ta)));
+    if(o.kind==='wall')continue;
     if(D.wrong&&o.kind!=='gap')high=!high;
     if(high){if(ta<.16+D.jit&&d>-22)duck=true}
     else if(!D.done&&d>-12){const c=o.kind==='gap'?(d+o.len/2)/SPEED:ta;
-      // twin hurdles: aim the jump between them
-      const nx=o.kind==='hurdle'?obs.find(n=>n.s>o.s&&n.s-o.s<50&&n.kind==='hurdle'):null;const aim=nx&&!D.wrong?c+(nx.s-o.s)/2/SPEED:c;
-      if(aim-.3+D.jit<=0){if(doJump(q)){D.done=true;if(nx)dec(nx).done=true}}}
+      if(c-.3+D.jit<=0){if(doJump(q))D.done=true}}
     if(ta>.6)break}
-  for(const r of rollers){const d=r.s-q.s;if(d<0||d>300)continue;const id='r'+r.id,D=q.ai.dec[id]||(q.ai.dec[id]={jit:gauss()*sk.jit*1.3,done:false});
+  for(const r of rollers){if(r.lane!==me)continue;const d=r.s-q.s;if(d<0||d>300)continue;const id='r'+r.id,D=q.ai.dec[id]||(q.ai.dec[id]={jit:gauss()*sk.jit*1.3,done:false});
     if(!D.done&&d/(SPEED+r.v)-.3+D.jit<=0){if(doJump(q))D.done=true}}
   q.duck=duck}
 function burst(q,col,n){const[x,y]=projQ(q,bodyH(q)/2);if(x==null)return;for(let k=0;k<n;k++){const a=Math.random()*TAU,s=80+Math.random()*260;
   fx.push({kind:'p',x,y,vx:Math.cos(a)*s,vy:Math.sin(a)*s-120,t:0,life:.4+Math.random()*.5,col,r:2+Math.random()*3})}}
 
 // ---- round flow ----
-function setupTower(){tw=TOWERS[round];genTrack((Math.random()*1e9)|0);clock=0;pl=[0,1,2,3].map(newPlayer);rollers=[];nextRoller=4;fx=[];
+function setupTower(){tw=TOWERS[round];genTrack((Math.random()*1e9)|0);clock=0;pl=[0,1,2].map(newPlayer);rollers=[];nextRoller=4;fx=[];
   finishOrder=[];firstFinish=-1;timeScale=1;endT=0;banner=null;cam.s=0;cam.y=0;initAmb()}
-function startMatch(){pts=[0,0,0,0];round=0;startRound()}
+function startMatch(){pts=[0,0,0];round=0;startRound()}
 function startRound(){setupTower();state='count';countT=3.2;hideMsg();mus.on=true;audio();$('skip').hidden=true;
   $('lvl').textContent=round+1;$('lname').textContent=tw.name;$('tip').textContent=tw.tip;buildChips()}
 function update(dt){
@@ -258,9 +278,9 @@ function update(dt){
     for(const q of pl)if(q.p>0)updateAI(q);
     // drums roll down from ahead of the leader
     if(tw.rollers){nextRoller-=dt;if(nextRoller<=0){nextRoller=tw.rollers*(.75+Math.random()*.5);const lead=Math.max(...pl.filter(q=>q.fin<0).map(q=>q.s),0);
-      if(lead<L-200){rollers.push({id:Math.random(),s:Math.min(L-20,lead+520),v:115,rot:0});if(Math.abs(lead+520-h.s)<700)sfx.roller()}}}
+      if(lead<L-200){rollers.push({id:Math.random(),lane:Math.floor(Math.random()*3),s:Math.min(L-20,lead+520),v:115,rot:0});if(Math.abs(lead+520-h.s)<700)sfx.roller()}}}
     for(const r of rollers){r.s-=r.v*dt;r.rot+=r.v*dt/18}
-    rollers=rollers.filter(r=>r.s>0&&!inGap(r.s)&&r.s>Math.min(...pl.map(q=>q.s))-300);
+    rollers=rollers.filter(r=>r.s>0&&!inGap(r.s,r.lane)&&r.s>Math.min(...pl.map(q=>q.s))-300);
     // gates crackle as they flip near you
     for(const o of obs)if(o.kind==='gate'&&Math.abs(o.s-h.s)<240){const now=gateHigh(o,clock);if(o.was!=null&&o.was!==now)sfx.zap();o.was=now}}
   for(const q of pl){updatePlayer(q,dt);if(state==='play')collide(q)}
@@ -273,13 +293,13 @@ function update(dt){
 function placing(){return[...finishOrder,...pl.filter(q=>q.fin<0).sort((a,b)=>b.s-a.s).map(q=>q.p)]}
 function skipToEnd(){let g=0;while(state==='play'&&g<60*400){update(1/60);g++}fx=[]}
 function endRound(){state='end';mus.on=false;const order=placing();
-  const award=[3,2,1,0];order.forEach((p,k)=>pts[p]+=award[k]);
-  const place=order.indexOf(0),ord=['1st','2nd','3rd','4th'];sfx.end(place===0);
+  const award=[3,1,0];order.forEach((p,k)=>pts[p]+=award[k]);
+  const place=order.indexOf(0),ord=['1st','2nd','3rd'];sfx.end(place===0);
   const tb='<table><tr><th></th><th></th><th>Time</th><th>+</th><th>Total</th></tr>'+order.map((p,k)=>{const q=pl[p];
     return`<tr><td>${ord[k]}</td><td><i style="background:${COLORS[p]}"></i>${NAMES[p]}</td><td>${q.fin>=0?q.fin.toFixed(1)+'s':Math.floor(q.s/L*100)+'%'}</td><td>+${award[k]}</td><td><b>${pts[p]}</b></td></tr>`}).join('')+'</table>';
   if(round<4)showMsg(place===0?'Top of the tower':'You placed '+ord[place],`${tw.name} is climbed. Next up: ${TOWERS[round+1].name}.`,tb,
     [{label:'Next tower',fn:()=>{round++;startRound()}}]);
-  else{const fin=[0,1,2,3].sort((a,b)=>pts[b]-pts[a]||a-b),fp=fin.indexOf(0),rec=pts[0]>best;
+  else{const fin=[0,1,2].sort((a,b)=>pts[b]-pts[a]||a-b),fp=fin.indexOf(0),rec=pts[0]>best;
     if(rec){best=pts[0];try{localStorage.setItem('spindleBest_'+skill,best)}catch(e){}$('best').textContent=best+' pts'}
     const ft='<table><tr><th></th><th></th><th>Points</th></tr>'+fin.map((p,k)=>`<tr><td>${ord[k]}</td><td><i style="background:${COLORS[p]}"></i>${NAMES[p]}</td><td><b>${pts[p]}</b></td></tr>`).join('')+'</table>';
     setTimeout(()=>sfx.end(fp===0),600);
@@ -293,13 +313,13 @@ function setPause(on){if(on&&(state==='play'||state==='count')){state='pause:'+s
     showMsg('Paused','The tower is holding still.','',[{label:'Resume',fn:()=>setPause(false)},{label:'Restart match',ghost:true,fn:startMatch}])}
   else if(!on&&state.startsWith('pause:')){state=state.slice(6);mus.on=true;hideMsg()}}
 function menu(){round=0;setupTower();state='menu';mus.on=false;$('skip').hidden=true;$('lvl').textContent=1;$('lname').textContent=tw.name;buildChips();$('tip').textContent='';
-  showMsg('Spindle Hop','Race three rivals up a spiral ramp that winds around a tower. Jump the hurdles, gaps and rolling drums, duck the beams, and get to the top first. Five towers, built fresh every time.',
+  showMsg('Spindle Hop','Race two rivals up a spiral ramp that winds around a tower. Sidestep between three lanes, jump the hurdles, gaps and rolling drums, duck the beams, and get to the top first. Five towers, built fresh every time.',
     '<span class="small">Rival skill</span><div class="row skills"></div>',[{label:'Start match',fn:startMatch}])}
 
 // ---- score chips ----
-function buildChips(){$('scores').innerHTML=[0,1,2,3].map(p=>`<div class="chip" id="ch${p}"><span class="n"><i style="background:${COLORS[p]}"></i>${NAMES[p]}</span><span class="s" id="sc${p}">0%</span><span class="k" id="pk${p}"></span></div>`).join('');chipT=0}
+function buildChips(){$('scores').innerHTML=[0,1,2].map(p=>`<div class="chip" id="ch${p}"><span class="n"><i style="background:${COLORS[p]}"></i>${NAMES[p]}</span><span class="s" id="sc${p}">0%</span><span class="k" id="pk${p}"></span></div>`).join('');chipT=0}
 let chipT=0;
-function updateChips(){const order=placing(),ord=['1st','2nd','3rd','4th'];
+function updateChips(){const order=placing(),ord=['1st','2nd','3rd'];
   for(const q of pl){const e=$('sc'+q.p);if(!e)continue;e.textContent=q.fin>=0?'TOP':Math.min(99,Math.floor(q.s/L*100))+'%';
     $('pk'+q.p).textContent=ord[order.indexOf(q.p)]+' · '+pts[q.p]+' pts';$('ch'+q.p).style.borderColor=order[0]===q.p&&state!=='menu'?COLORS[q.p]:''}
   $('place').textContent=state==='menu'?'–':ord[order.indexOf(0)]}
@@ -316,7 +336,7 @@ function initAmb(){amb=[];for(let i=0;i<60;i++)amb.push(spawnAmb(true))}
 // Perspective camera on a circle around the tower, turned to face it from just ahead of you.
 let camA=0,camY=0;
 function P(a,r,y){const da=a-camA,x=Math.sin(da)*r,z=Math.cos(da)*r,d=DCAM-z,k=FOC/d;return[CX+x*k,CY0-(y-camY)*k,d,k]}
-function projQ(q,dy){if(q.fall>0&&q.fallY<-400)return[null];return P(q.s/RM,q.lane,q.s*PITCH+(q.fall>0?q.fallY:q.y)+dy)}
+function projQ(q,dy){if(q.fall>0&&q.fallY<-400)return[null];return P(q.s/RM,laneR(q.lr),q.s*PITCH+(q.fall>0?q.fallY:q.y)+dy)}
 function poly(pts,fill){cx.fillStyle=fill;cx.beginPath();pts.forEach(([x,y],i)=>i?cx.lineTo(x,y):cx.moveTo(x,y));cx.closePath();cx.fill()}
 function stripes(p0,p1,n,c1,c2,w){for(let k=0;k<n;k++){const t0=k/n,t1=(k+1)/n;cx.strokeStyle=k%2?c1:c2;cx.lineWidth=w;
   cx.beginPath();cx.moveTo(p0[0]+(p1[0]-p0[0])*t0,p0[1]+(p1[1]-p0[1])*t0);cx.lineTo(p0[0]+(p1[0]-p0[0])*t1,p0[1]+(p1[1]-p0[1])*t1);cx.stroke()}}
@@ -354,46 +374,50 @@ function drawTower(time){
   if(top>-60){cx.fillStyle=tw.accent;cx.beginPath();cx.ellipse(CX,top,hw,hw*.2,0,0,TAU);cx.fill();
     cx.fillStyle=hexA(tw.accent,.25+.15*Math.sin(time*4));cx.beginPath();cx.ellipse(CX,top-20,hw*.7,60,0,0,TAU);cx.fill()}}
 function rampSeg(s0,s1){
-  const a0=s0/RM,a1=s1/RM,y0=s0*PITCH,y1=s1*PITCH,da=(a0+a1)/2-camA;
+  const a0=s0/RM,a1=s1/RM,y0=s0*PITCH,y1=s1*PITCH,da=(a0+a1)/2-camA,mid=(s0+s1)/2,open=[0,1,2].map(j=>!inGap(mid,j));
   return{d:DCAM-Math.cos(da)*RM,z:Math.cos(da),f:()=>{
-    const i0=P(a0,R0,y0),i1=P(a1,R0,y1),o0=P(a0,R1,y0),o1=P(a1,R1,y1);
     const below=(y0+y1)/2>camY+5,light=.75+.25*Math.cos(da-.6),stripe=Math.floor(s0/64)%2;
-    poly([i0,i1,o1,o0],shade(stripe?tw.ramp:tw.ramp2,below?.45:light));
-    const r0=P(a0,R1,y0-18),r1=P(a1,R1,y1-18);poly([o0,o1,r1,r0],shade(tw.rim,light));
-    if(!below){cx.strokeStyle=hexA(tw.accent,.35);cx.lineWidth=1.5;cx.beginPath();cx.moveTo(o0[0],o0[1]);cx.lineTo(o1[0],o1[1]);cx.stroke()}
-    if(s0<=L&&s1>L)stripes(P(L/RM,R0,L*PITCH),P(L/RM,R1,L*PITCH),8,'#fff','#111',7*i0[3])}}}
+    // each lane is its own strip so a gap can cut just one or two of them
+    for(let j=0;j<3;j++){if(!open[j])continue;const ri=laneLo(j),ro=laneHi(j);
+      poly([P(a0,ri,y0),P(a1,ri,y1),P(a1,ro,y1),P(a0,ro,y0)],shade((stripe+j)%2?tw.ramp:tw.ramp2,(below?.45:light)*(j===1?1.04:1)))}
+    if(open[2]){const o0=P(a0,R1,y0),o1=P(a1,R1,y1),r0=P(a0,R1,y0-18),r1=P(a1,R1,y1-18);poly([o0,o1,r1,r0],shade(tw.rim,light));
+      if(!below){cx.strokeStyle=hexA(tw.accent,.35);cx.lineWidth=1.5;cx.beginPath();cx.moveTo(o0[0],o0[1]);cx.lineTo(o1[0],o1[1]);cx.stroke()}}
+    if(!below){cx.strokeStyle='rgba(255,255,255,.12)';cx.lineWidth=1.5;cx.setLineDash([6,8]);for(const j of[1,2])if(open[j]&&open[j-1]){const l0=P(a0,laneLo(j),y0),l1=P(a1,laneLo(j),y1);cx.beginPath();cx.moveTo(l0[0],l0[1]);cx.lineTo(l1[0],l1[1]);cx.stroke()}cx.setLineDash([])}
+    if(s0<=L&&s1>L)stripes(P(L/RM,R0,L*PITCH),P(L/RM,R1,L*PITCH),9,'#fff','#111',7*P(a0,R0,y0)[3])}}}
 function boxItem(s,lo,hi,colTop,colSide,rIn,rOut,w=12){
   const a=s/RM,y=s*PITCH,da=a-camA;
-  return{d:DCAM-Math.cos(da)*RM-2,z:Math.cos(da),f:()=>{
+  return{d:DCAM-Math.cos(da)*(rIn+rOut)/2-2,z:Math.cos(da),f:()=>{
     const aa=(s-w/2)/RM,ab=(s+w/2)/RM;
     const f0=[P(aa,rIn,y+lo),P(aa,rOut,y+lo),P(aa,rOut,y+hi),P(aa,rIn,y+hi)],b0=[P(ab,rIn,y+lo),P(ab,rOut,y+lo),P(ab,rOut,y+hi),P(ab,rIn,y+hi)];
     const back=f0[1][2]>b0[1][2]?f0:b0,front=back===f0?b0:f0;
-    poly(back,colSide);poly([back[3],back[2],front[2],front[3]],colTop);poly([back[1],back[2],front[2],front[1]],colSide);poly(front,colSide);
+    poly(back,colSide);poly([back[0],back[3],front[3],front[0]],colSide);poly([back[3],back[2],front[2],front[3]],colTop);poly([back[1],back[2],front[2],front[1]],colSide);poly(front,colSide);
     cx.strokeStyle=colTop;cx.lineWidth=3*front[0][3];cx.beginPath();cx.moveTo(front[3][0],front[3][1]);cx.lineTo(front[2][0],front[2][1]);cx.stroke()}}}
 function hazardItems(items,time){
   const lo=cam.s-TURN*.55,hi=cam.s+TURN*1.25;
-  for(const o of obs){if(o.s+(o.len||0)<lo||o.s>hi)continue;
-    if(o.kind==='hurdle')items.push(boxItem(o.s,0,HURDLE[1],'#ff5c8a','#a8264f',R0,R1-6));
-    else if(o.kind==='beam')items.push(boxItem(o.s,BEAM[0],BEAM[1],'#4cd9ff','#1d7fa5',R0,R1+10,14));
+  for(const o of obs){if(o.s+(o.len||0)<lo||o.s>hi)continue;const ri=laneLo(o.lane)+3,ro=laneHi(o.lane)-3;
+    if(o.kind==='hurdle')items.push(boxItem(o.s,0,HURDLE[1],'#ff5c8a','#a8264f',ri,ro));
+    else if(o.kind==='wall'){const it=boxItem(o.s,0,WALL,'#ffcf3a','#4a4658',ri,ro,18),f=it.f;it.f=()=>{f();const a=o.s/RM,y=o.s*PITCH,p0=P(a,ri,y+WALL-10),p1=P(a,ro,y+WALL-10);stripes(p0,p1,5,'#111','#ffcf3a',8*p0[3])};items.push(it)}
+    else if(o.kind==='beam'){const it=boxItem(o.s,BEAM[0],BEAM[1],'#4cd9ff','#1d7fa5',ri,ro,14),f=it.f;
+      it.f=()=>{const a=o.s/RM,y=o.s*PITCH;cx.strokeStyle='#2a2833';for(const r of[ri,ro]){const p0=P(a,r,y),p1=P(a,r,y+BEAM[0]);cx.lineWidth=4*p0[3];cx.beginPath();cx.moveTo(p0[0],p0[1]);cx.lineTo(p1[0],p1[1]);cx.stroke()}f()};items.push(it)}
     else if(o.kind==='gate'){const a=o.s/RM,y=o.s*PITCH,da=a-camA;
-      items.push({d:DCAM-Math.cos(da)*RM-2,z:Math.cos(da),f:()=>{const hiM=gateHigh(o,clock),soon=gateSoon(o,clock)&&Math.sin(time*40)>0,b=hiM?BEAM:HURDLE,col=soon?'#ffffff':hiM?'#4cd9ff':'#ff5c8a';
-        const p0=P(a,R1-8,y),p1=P(a,R1-8,y+92),q0=P(a,R0+4,y),q1=P(a,R0+4,y+92);
-        cx.strokeStyle='#2a2833';cx.lineWidth=7*p0[3];cx.beginPath();cx.moveTo(p0[0],p0[1]);cx.lineTo(p1[0],p1[1]);cx.moveTo(q0[0],q0[1]);cx.lineTo(q1[0],q1[1]);cx.stroke();
-        const l0=P(a,R0+4,y+(b[0]+b[1])/2),l1=P(a,R1-8,y+(b[0]+b[1])/2),th=(b[1]-b[0])*l0[3];
+      items.push({d:DCAM-Math.cos(da)*(ri+ro)/2-2,z:Math.cos(da),f:()=>{const hiM=gateHigh(o,clock),soon=gateSoon(o,clock)&&Math.sin(time*40)>0,b=hiM?BEAM:HURDLE,col=soon?'#ffffff':hiM?'#4cd9ff':'#ff5c8a';
+        const p0=P(a,ro,y),p1=P(a,ro,y+92),q0=P(a,ri,y),q1=P(a,ri,y+92);
+        cx.strokeStyle='#2a2833';cx.lineWidth=6*p0[3];cx.beginPath();cx.moveTo(p0[0],p0[1]);cx.lineTo(p1[0],p1[1]);cx.moveTo(q0[0],q0[1]);cx.lineTo(q1[0],q1[1]);cx.stroke();
+        const l0=P(a,ri,y+(b[0]+b[1])/2),l1=P(a,ro,y+(b[0]+b[1])/2),th=(b[1]-b[0])*l0[3];
         cx.strokeStyle=hexA(col,.3);cx.lineWidth=th+10*l0[3];cx.beginPath();cx.moveTo(l0[0],l0[1]);cx.lineTo(l1[0],l1[1]);cx.stroke();
         for(let k=0;k<3;k++){cx.strokeStyle=hexA(col,.9);cx.lineWidth=2.5*l0[3];const off=(k-1)*th*.32+Math.sin(time*30+k)*1.5;cx.beginPath();cx.moveTo(l0[0],l0[1]+off);cx.lineTo(l1[0],l1[1]+off);cx.stroke()}}})}
     else if(o.kind==='gap'){for(const e of[o.s,o.s+o.len]){const a=e/RM,y=e*PITCH,da=a-camA;
-      items.push({d:DCAM-Math.cos(da)*RM-1,z:Math.cos(da),f:()=>{const p0=P(a,R0,y),p1=P(a,R1,y);stripes(p0,p1,6,'#111','#ffcf3a',5*p0[3])}})}}}
-  for(const r of rollers){if(r.s<lo||r.s>hi)continue;const a=r.s/RM,y=r.s*PITCH+18,da=a-camA;
-    items.push({d:DCAM-Math.cos(da)*RM-3,z:Math.cos(da),f:()=>{const p0=P(a,R0+6,y),p1=P(a,R1-6,y),rad=18*p0[3],rad1=18*p1[3];
+      items.push({d:DCAM-Math.cos(da)*(ri+ro)/2-1,z:Math.cos(da),f:()=>{const p0=P(a,ri-3,y),p1=P(a,ro+3,y);stripes(p0,p1,4,'#111','#ffcf3a',5*p0[3])}})}}}
+  for(const r of rollers){if(r.s<lo||r.s>hi)continue;const a=r.s/RM,y=r.s*PITCH+18,da=a-camA,ri=laneLo(r.lane)+4,ro=laneHi(r.lane)-4;
+    items.push({d:DCAM-Math.cos(da)*(ri+ro)/2-3,z:Math.cos(da),f:()=>{const p0=P(a,ri,y),p1=P(a,ro,y),rad=18*p0[3],rad1=18*p1[3];
       cx.strokeStyle='#5a3a24';cx.lineCap='round';cx.lineWidth=rad+rad1;cx.beginPath();cx.moveTo(p0[0],p0[1]);cx.lineTo(p1[0],p1[1]);cx.stroke();
-      cx.strokeStyle='#ffcf3a';cx.lineWidth=3;for(let k=1;k<5;k++){const t=k/5,x=p0[0]+(p1[0]-p0[0])*t,yy=p0[1]+(p1[1]-p0[1])*t,o=Math.sin(r.rot+k*1.3)*(rad+rad1)*.4;
+      cx.strokeStyle='#ffcf3a';cx.lineWidth=3;for(let k=1;k<4;k++){const t=k/4,x=p0[0]+(p1[0]-p0[0])*t,yy=p0[1]+(p1[1]-p0[1])*t,o=Math.sin(r.rot+k*1.3)*(rad+rad1)*.4;
         cx.beginPath();cx.moveTo(x-1,yy-o);cx.lineTo(x+1,yy-o);cx.stroke()}cx.lineCap='butt';
       cx.fillStyle='#8a5a34';cx.beginPath();cx.ellipse(p1[0],p1[1],rad1*.45,rad1,0,0,TAU);cx.fill();
       cx.strokeStyle='#ffcf3a';cx.lineWidth=2;cx.beginPath();cx.moveTo(p1[0],p1[1]);cx.lineTo(p1[0]+Math.cos(r.rot)*rad1*.4,p1[1]+Math.sin(r.rot)*rad1);cx.stroke()}})}}
 function drawPlayer(q,time){
   const[x,yb,,k]=projQ(q,0);if(x==null)return;const col=COLORS[q.p];
-  if(q.fall<=0&&!inGap(q.s)){const[sx,sy]=P(q.s/RM,q.lane,q.s*PITCH);cx.fillStyle=`rgba(0,0,0,${.35*Math.max(.2,1-q.y/220)})`;cx.beginPath();cx.ellipse(sx,sy,18*k,6*k,0,0,TAU);cx.fill()}
+  if(q.fall<=0&&!inGap(q.s,laneOf(q))){const[sx,sy]=P(q.s/RM,laneR(q.lr),q.s*PITCH);cx.fillStyle=`rgba(0,0,0,${.35*Math.max(.2,1-q.y/220)})`;cx.beginPath();cx.ellipse(sx,sy,18*k,6*k,0,0,TAU);cx.fill()}
   const hh=bodyH(q)*k,sq=q.squash,wv=30*k*(1+sq*.18),hv=hh*(1-sq*.15);
   if(q.inv>0&&q.fall<=0&&Math.floor(time*16)%2)cx.globalAlpha=.4;
   cx.save();cx.translate(x,yb);if(q.fall>0)cx.rotate((1.1-q.fall)*6);
@@ -421,9 +445,9 @@ function draw(time){
   drawBg(time);
   cx.save();if(shake>0)cx.translate((Math.random()-.5)*10*shake,(Math.random()-.5)*10*shake);
   const items=[],lo=Math.max(0,cam.s-TURN*.55),hi=Math.min(L+260,cam.s+TURN*1.25),step=16;
-  for(let s=Math.floor(lo/step)*step;s<hi;s+=step){if(inGap(s+step/2))continue;items.push(rampSeg(s,s+step))}
+  for(let s=Math.floor(lo/step)*step;s<hi;s+=step)items.push(rampSeg(s,s+step))
   hazardItems(items,time);
-  for(const q of pl){const da=q.s/RM-camA;items.push({d:DCAM-Math.cos(da)*q.lane-4,z:Math.cos(da),f:()=>drawPlayer(q,time)})}
+  for(const q of pl){const da=q.s/RM-camA;items.push({d:DCAM-Math.cos(da)*laneR(q.lr)-4,z:Math.cos(da),f:()=>drawPlayer(q,time)})}
   // anything round the back of the tower is drawn first, then the tower hides it
   const back=items.filter(i=>i.z<0).sort((a,b)=>b.d-a.d),front=items.filter(i=>i.z>=0).sort((a,b)=>b.d-a.d);
   back.forEach(i=>i.f());drawTower(time);front.forEach(i=>i.f());
@@ -454,16 +478,25 @@ addEventListener('keydown',e=>{const k=e.key.toLowerCase();if(e.repeat&&(k===' '
   if(k==='r'){startMatch();return}
   if(k==='p'||k==='escape'){setPause(!state.startsWith('pause'));return}
   if(k===' '||k==='w'||k==='arrowup'){press();e.preventDefault()}
-  else if(k==='s'||k==='arrowdown'||k==='shift'){input.duckKey=true;e.preventDefault()}});
+  else if(k==='s'||k==='arrowdown'||k==='shift'){input.duckKey=true;e.preventDefault()}
+  else if(k==='a'||k==='arrowleft'){side(-1);e.preventDefault()}
+  else if(k==='d'||k==='arrowright'){side(1);e.preventDefault()}});
+// left steps toward the tower (inner lane), right steps out toward the edge
+function side(dir){audio();if(state==='play'||state==='count')shift(pl[0],dir)}
 addEventListener('keyup',e=>{const k=e.key.toLowerCase();if(k==='s'||k==='arrowdown'||k==='shift')input.duckKey=false});
-cv.addEventListener('pointerdown',e=>{const r=cv.getBoundingClientRect();if(e.clientY-r.top<r.height*.5)press();else{audio();input.duckTouch=true}e.preventDefault()});
-const endTouch=()=>{input.duckTouch=false};cv.addEventListener('pointerup',endTouch);cv.addEventListener('pointercancel',endTouch);cv.addEventListener('pointerleave',endTouch);
+// on the canvas: swipe sideways to change lane, tap the top half to jump, hold the bottom half to duck
+let sw=null;
+cv.addEventListener('pointerdown',e=>{const r=cv.getBoundingClientRect();sw={x:e.clientX,y:e.clientY,done:false};
+  if(e.clientY-r.top<r.height*.5)press();else{audio();input.duckTouch=true}e.preventDefault()});
+cv.addEventListener('pointermove',e=>{if(!sw||sw.done)return;const dx=e.clientX-sw.x;if(Math.abs(dx)>36){side(Math.sign(dx));sw.done=true;input.duckTouch=false}});
+const endTouch=()=>{input.duckTouch=false;sw=null};cv.addEventListener('pointerup',endTouch);cv.addEventListener('pointercancel',endTouch);cv.addEventListener('pointerleave',endTouch);
 cv.addEventListener('contextmenu',e=>e.preventDefault());
 const bj=$('bJump'),bd=$('bDuck');
 bj.addEventListener('pointerdown',e=>{press();bj.classList.add('held');e.preventDefault()});
 ['pointerup','pointercancel','pointerleave'].forEach(t=>{bj.addEventListener(t,()=>bj.classList.remove('held'));bd.addEventListener(t,()=>{input.duckPad=false;bd.classList.remove('held')})});
 bd.addEventListener('pointerdown',e=>{audio();input.duckPad=true;bd.classList.add('held');e.preventDefault()});
-[bj,bd].forEach(b=>b.addEventListener('contextmenu',e=>e.preventDefault()));
+$('bIn').addEventListener('pointerdown',e=>{side(-1);e.preventDefault()});$('bOut').addEventListener('pointerdown',e=>{side(1);e.preventDefault()});
+[bj,bd,$('bIn'),$('bOut')].forEach(b=>b.addEventListener('contextmenu',e=>e.preventDefault()));
 addEventListener('blur',()=>{input.duckKey=false;setPause(true)});
 document.addEventListener('visibilitychange',()=>{if(document.hidden)setPause(true)});
 $('restart').onclick=()=>{audio();startMatch()};
