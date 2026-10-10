@@ -26,15 +26,10 @@
   .row{display:flex;flex-wrap:wrap;gap:8px;justify-content:center;align-items:center}
   .skills button{padding:6px 12px}
   .skills button.cur{background:var(--pink);color:var(--bg);border-color:var(--pink)}
-  .pads{display:grid;grid-template-columns:1fr 2fr 2fr 1fr;gap:8px;width:100%}
-  .pads button{padding:16px;font-size:1.2rem;touch-action:none}
-  .pads #bJump{background:#ff5c8a}
-  .pads #bDuck{background:#4cd9ff}
-  .pads button.held{filter:brightness(1.3);transform:translateY(2px)}
+  body.playing{touch-action:none;overscroll-behavior:none}
   .tip{color:var(--text);margin:0;min-height:1.5em}
   .back{justify-self:start;color:var(--muted)}
   .small{font-size:.85rem;color:var(--muted);margin:0;max-width:60ch}
-  @media (hover:hover) and (pointer:fine){.pads{display:none}}
 </style>
 </head>
 <body>
@@ -46,7 +41,6 @@
     <canvas id="c"></canvas>
     <div class="msg" id="msg"><h2 id="mt"></h2><p id="mp"></p><div class="stats" id="ms"></div><div class="row" id="mbtns"></div></div>
   </div>
-  <div class="pads"><button class="ghost" id="bIn" aria-label="Move left">◀</button><button id="bJump">Jump</button><button id="bDuck">Duck</button><button class="ghost" id="bOut" aria-label="Move right">▶</button></div>
   <p class="tip" id="tip"></p>
   <div class="row">
     <button class="ghost" id="restart">Restart (R)</button>
@@ -54,7 +48,7 @@
     <button class="ghost" id="snd">Sound on (M)</button>
   </div>
   <div class="row"><span class="small">Difficulty</span><div class="row skills" id="skills"></div></div>
-  <p class="small">An endless run up a spiral tower. ← and → (or A and D) move between the three lanes, ↑, W or Space jumps, and holding ↓ or S ducks. Jump pink hurdles, gaps and rolling drums, duck blue beams, and dodge grey walls. Laser gates switch between low and high. Grab gems for points, and keep a clean streak going to raise your multiplier. On a touchscreen, swipe in any direction or use the pads.</p>
+  <p class="small">An endless run up a spiral tower. ← and → (or A and D) move between the three lanes, ↑, W or Space jumps, and holding ↓ or S ducks. Jump pink hurdles, gaps and rolling drums, duck blue beams, and dodge grey walls. Laser gates switch between low and high. Grab gems for points, and keep a clean streak going to raise your multiplier. On a touchscreen, swipe anywhere: left or right to change lane, up to jump, down to duck (hold to stay ducked). You can chain swipes without lifting your finger.</p>
 </main>
 <script>
 const $=id=>document.getElementById(id);
@@ -240,8 +234,8 @@ function dust(q,n){const[x,y]=P(q.s/RM,laneR(q.lr),q.s*PITCH);for(let k=0;k<n;k+
 // ---- run flow ----
 function setup(){R=rng((Math.random()*1e9)|0);pl=newRunner();obs=[];gaps=[];gems=[];rollers=[];fx=[];genS=420;rowId=0;objId=0;lastRow=-1;nextHeart=4000;
   score=0;gemsGot=0;streak=0;mult=1;clock=0;zone=0;prevZone=0;zoneFade=1;nextRoller=3;banner=null;cam.s=0;cam.y=0;fillTrack();initAmb()}
-function startRun(){setup();state='count';countT=3.2;hideMsg();mus.on=true;audio();updateHud()}
-function gameOver(){state='over';mus.on=false;const total=Math.floor(score),rec=total>best;
+function startRun(){setup();state='count';document.body.classList.add('playing');countT=3.2;hideMsg();mus.on=true;audio();updateHud()}
+function gameOver(){state='over';document.body.classList.remove('playing');mus.on=false;const total=Math.floor(score),rec=total>best;
   if(rec){best=total;try{localStorage.setItem('spindleRun_'+skill,best)}catch(e){}loadBest()}
   setTimeout(()=>sfx.over(rec),300);
   setTimeout(()=>{if(state!=='over')return;
@@ -280,7 +274,7 @@ function hideMsg(){$('msg').classList.remove('on')}
 function setPause(on){if(on&&(state==='play'||state==='count')){state='pause:'+state;mus.on=false;
     showMsg('Paused','The tower is holding still.','',[{label:'Resume',fn:()=>setPause(false)},{label:'Restart run',ghost:true,fn:startRun}])}
   else if(!on&&state.startsWith('pause:')){state=state.slice(6);mus.on=true;hideMsg()}}
-function menu(){setup();state='menu';mus.on=false;updateHud();$('tip').textContent=ZONES[0].tip;
+function menu(){setup();state='menu';document.body.classList.remove('playing');mus.on=false;updateHud();$('tip').textContent=ZONES[0].tip;
   showMsg('Spindle Hop','An endless run up a spiral tower. Move left and right between three lanes, jump and duck, and see how high you can climb. It gets faster the higher you go.',
     '<span class="small">Difficulty</span><div class="row skills"></div>',[{label:'Start run',fn:startRun}])}
 
@@ -457,21 +451,24 @@ addEventListener('keydown',e=>{const k=e.key.toLowerCase();if(e.repeat&&k!=='s'&
   else if(k==='a'||k==='arrowleft'){side(-1);e.preventDefault()}
   else if(k==='d'||k==='arrowright'){side(1);e.preventDefault()}});
 addEventListener('keyup',e=>{const k=e.key.toLowerCase();if(k==='s'||k==='arrowdown'||k==='shift')input.duckKey=false});
-// touch: swipe left or right to change lane, up to jump, down to slide under; a plain tap jumps
-let sw=null;
-cv.addEventListener('pointerdown',e=>{audio();sw={x:e.clientX,y:e.clientY,done:false};e.preventDefault()});
-cv.addEventListener('pointermove',e=>{if(!sw||sw.done)return;const dx=e.clientX-sw.x,dy=e.clientY-sw.y;
-  if(Math.max(Math.abs(dx),Math.abs(dy))<30)return;sw.done=true;
-  if(Math.abs(dx)>Math.abs(dy))side(Math.sign(dx));else if(dy<0)press();else input.slide=.6});
-cv.addEventListener('pointerup',()=>{if(sw&&!sw.done)press();sw=null});
-cv.addEventListener('pointercancel',()=>{sw=null});
+// touch: swipe anywhere on the screen. Left/right change lane, up jumps, down ducks (keep the
+// finger down to stay ducked). Swipes chain without lifting: each one starts where the last ended.
+const SWIPE=22,FLICK=10;let sw=null;
+const onUi=e=>e.target.closest&&e.target.closest('button,input,a,.skills');
+function swipe(dx,dy){if(Math.abs(dx)>Math.abs(dy))side(Math.sign(dx));else if(dy<0)press();else{input.slide=.45;input.duckTouch=true}}
+addEventListener('pointerdown',e=>{if(e.pointerType==='mouse'||onUi(e))return;audio();
+  sw={id:e.pointerId,x:e.clientX,y:e.clientY,t:performance.now(),moved:false};if(state==='play'||state==='count')e.preventDefault()},{passive:false});
+addEventListener('pointermove',e=>{if(!sw||e.pointerId!==sw.id)return;const dx=e.clientX-sw.x,dy=e.clientY-sw.y;
+  if(Math.max(Math.abs(dx),Math.abs(dy))<SWIPE)return;
+  if(Math.abs(dy)>=Math.abs(dx)&&dy>0&&input.duckTouch)return;  // still holding a duck
+  input.duckTouch=false;swipe(dx,dy);sw.x=e.clientX;sw.y=e.clientY;sw.t=performance.now();sw.moved=true});
+function lift(e){if(!sw||e.pointerId!==sw.id)return;
+  // a quick short flick that never reached the full distance still counts
+  const dx=e.clientX-sw.x,dy=e.clientY-sw.y;
+  if(e.type==='pointerup'&&performance.now()-sw.t<220&&Math.max(Math.abs(dx),Math.abs(dy))>=FLICK)swipe(dx,dy);
+  input.duckTouch=false;sw=null}
+addEventListener('pointerup',lift);addEventListener('pointercancel',lift);
 cv.addEventListener('contextmenu',e=>e.preventDefault());
-const bj=$('bJump'),bd=$('bDuck');
-bj.addEventListener('pointerdown',e=>{press();bj.classList.add('held');e.preventDefault()});
-['pointerup','pointercancel','pointerleave'].forEach(t=>{bj.addEventListener(t,()=>bj.classList.remove('held'));bd.addEventListener(t,()=>{input.duckPad=false;bd.classList.remove('held')})});
-bd.addEventListener('pointerdown',e=>{audio();input.duckPad=true;bd.classList.add('held');e.preventDefault()});
-$('bIn').addEventListener('pointerdown',e=>{side(-1);e.preventDefault()});$('bOut').addEventListener('pointerdown',e=>{side(1);e.preventDefault()});
-[bj,bd,$('bIn'),$('bOut')].forEach(b=>b.addEventListener('contextmenu',e=>e.preventDefault()));
 addEventListener('blur',()=>{input.duckKey=false;setPause(true)});
 document.addEventListener('visibilitychange',()=>{if(document.hidden)setPause(true)});
 $('restart').onclick=()=>{audio();startRun()};
