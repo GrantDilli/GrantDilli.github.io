@@ -14,7 +14,7 @@ HOOKS = {
     "topple": ["const k=li;if(!save.best[k]"],  # level cleared, not fall/spawn
     "twin-comets": ["function fail(now,why='late'){", "function win(){"],
     "flux-weave": ["function endRound(){"],
-    "spindle-hop": ["function endRound(){"],
+    "spindle-hop": ["function gameOver(){"],
 }
 # Games whose page can outgrow the screen; the glue scales them to fit. Vortex Bloom
 # already fills the screen exactly.
