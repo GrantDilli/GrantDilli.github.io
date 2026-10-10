@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no">
+<meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no,viewport-fit=cover">
 <title>Topple · Infinite Games</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bungee&family=Rubik:wght@400;500&display=swap">
 <link rel="stylesheet" href="../../style.css">
@@ -26,19 +26,29 @@
   .tip{color:var(--text);margin:0;min-height:1.5em}
   .back{justify-self:start;color:var(--muted)}
 </style>
+<link rel="stylesheet" href="../fs.css">
+<script src="../fs.js" defer></script>
 </head>
 <body>
-<main>
-  <a class="back" href="../../index.html">← All games</a>
-  <h1>Topple</h1>
-  <div class="bar"><span>Level <b id="lvl">1</b>: <b id="lname"></b></span><span>Moves <b id="moves">0</b></span><span>Best <b id="best">–</b></span></div>
-  <div class="stage">
+<main class="fs">
+  <header class="top">
+    <a class="back" href="../../index.html">← All games</a>
+    <h1>Topple</h1>
+    <div class="bar"><span>Level <b id="lvl">1</b>: <b id="lname"></b></span><span>Moves <b id="moves">0</b></span><span>Best <b id="best">–</b></span></div>
+    <button class="fsbtn" data-fs aria-label="Full screen" hidden><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg></button>
+  </header>
+  <div class="stage fill">
     <canvas id="c"></canvas>
     <div class="msg" id="msg"><h2 id="mt"></h2><p id="mp"></p><div class="row"><button id="mb"></button></div></div>
   </div>
-  <p class="tip" id="tip"></p>
-  <div class="row"><button class="ghost" id="restart">Restart (R)</button><button class="ghost" id="snd">Sound on (M)</button></div>
-  <div class="row levels" id="levels"></div>
+  <footer class="dock">
+    <p class="tip" id="tip"></p>
+    <div class="row"><button class="ghost" id="restart">Restart (R)</button><button class="ghost" id="snd">Sound on (M)</button>
+      <details class="more"><summary>Levels</summary><div class="panel"><button class="ghost close" aria-label="Close">✕</button>
+    <div class="row levels" id="levels"></div>
+      </div></details>
+    </div>
+  </footer>
 </main>
 <script>
 // Map key: . empty, o floor, S start, G goal hole, f cracked tile (can't stand on it),
@@ -441,7 +451,7 @@ const depth=(x,y)=>x*SYW+y*CYW;
 function proj(x,y,z){return[x*CYW-y*SYW,(x*SYW+y*CYW)*SE-z*CE]}
 function fit(){
   const r=cv.getBoundingClientRect(),d=devicePixelRatio||1;
-  cv.width=Math.round(r.width*d);cv.height=Math.round(r.width*.75*d);
+  cv.width=Math.round(r.width*d);cv.height=Math.round(r.height*d);
   let x0=1e9,x1=-1e9,y0=1e9,y1=-1e9;
   tiles.forEach(t=>[[t.x,t.y],[t.x+1,t.y],[t.x,t.y+1],[t.x+1,t.y+1]].forEach(([x,y])=>[-T,2].forEach(z=>{
     const[u,v]=proj(x,y,z);x0=Math.min(x0,u);x1=Math.max(x1,u);y0=Math.min(y0,v);y1=Math.max(y1,v)})));

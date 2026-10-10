@@ -52,24 +52,10 @@
   // Long presses on the game field must not select text or open the context menu.
   addEventListener('contextmenu',function(e){if(e.target.tagName!=='INPUT')e.preventDefault()});
 
-  // Scale pages taller or wider than the screen down to fit, so there is never a page scrollbar.
-  function fitSetup(){
-    var w=document.createElement('div');w.id='pg-fit';
-    [].slice.call(document.body.childNodes).forEach(function(n){if(n.tagName!=='SCRIPT')w.appendChild(n)});
-    document.body.insertBefore(w,document.body.firstChild);
-    var queued=false;
-    function fit(){queued=false;w.style.transform='none';
-      var s=Math.min(1,innerWidth/w.scrollWidth,innerHeight/w.offsetHeight);
-      w.style.transform='translateX(-50%) scale('+s+')'}
-    function later(){if(!queued){queued=true;raf(fit)}}
-    addEventListener('resize',later);new ResizeObserver(later).observe(w);fit();
-  }
-
   function runGame(){
     [].slice.call(document.querySelectorAll('script[data-pg-game]')).forEach(function(old){
       var s=document.createElement('script');s.textContent=old.textContent;old.replaceWith(s);
     });
-    if(window.PG_FIT)fitSetup();
     // First playable frame: the title screen is drawn and accepts input.
     raf(function(){raf(function(){send('game_ready')})});
   }

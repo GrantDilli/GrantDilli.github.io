@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no">
+<meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no,viewport-fit=cover">
 <title>Twin Comets · Infinite Games</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bungee&family=Rubik:wght@400;500&display=swap">
 <link rel="stylesheet" href="../../style.css">
@@ -32,24 +32,33 @@
   .off{color:var(--muted);font-variant-numeric:tabular-nums;min-width:9ch}
   .small{font-size:.85rem;color:var(--muted);margin:0}
 </style>
+<link rel="stylesheet" href="../fs.css">
+<script src="../fs.js" defer></script>
 </head>
 <body>
-<main>
-  <a class="back" href="../../index.html">← All games</a>
-  <h1>Twin Comets</h1>
-  <div class="bar"><span>Level <b id="lvl">1</b>: <b id="lname"></b></span><span>Accuracy <b id="acc">–</b></span><span>Best <b id="best">–</b></span></div>
-  <div class="stage" id="stage">
+<main class="fs">
+  <header class="top">
+    <a class="back" href="../../index.html">← All games</a>
+    <h1>Twin Comets</h1>
+    <div class="bar"><span>Level <b id="lvl">1</b>: <b id="lname"></b></span><span>Accuracy <b id="acc">–</b></span><span>Best <b id="best">–</b></span></div>
+    <button class="fsbtn" data-fs aria-label="Full screen" hidden><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg></button>
+  </header>
+  <div class="stage fill" id="stage">
     <canvas id="c"></canvas>
     <div class="msg" id="msg"><h2 id="mt"></h2><p id="mp"></p><p class="stats" id="ms"></p><div class="row" id="mbtns"></div></div>
   </div>
-  <p class="tip" id="tip"></p>
-  <div class="row">
-    <button class="ghost" id="restart">Restart (R)</button>
-    <button class="ghost" id="snd">Sound on (M)</button>
-    <button class="ghost" id="offDown" aria-label="Hit earlier">−</button><span class="off" id="off">Offset 0ms</span><button class="ghost" id="offUp" aria-label="Hit later">+</button>
-  </div>
-  <p class="small">Tap any key, click or touch on the beat. Tapping too early or too late is a miss. If your hits feel off every time, nudge the offset.</p>
-  <div class="row levels" id="levels"></div>
+  <footer class="dock">
+    <p class="tip" id="tip"></p>
+    <div class="row">
+      <button class="ghost" id="restart">Restart (R)</button>
+      <button class="ghost" id="snd">Sound on (M)</button>
+      <details class="more"><summary>Levels</summary><div class="panel"><button class="ghost close" aria-label="Close">✕</button>
+    <div class="row"><button class="ghost" id="offDown" aria-label="Hit earlier">−</button><span class="off" id="off">Offset 0ms</span><button class="ghost" id="offUp" aria-label="Hit later">+</button></div>
+    <p class="small">Tap any key, click or touch on the beat. Tapping too early or too late is a miss. If your hits feel off every time, nudge the offset.</p>
+    <div class="row levels" id="levels"></div>
+      </div></details>
+    </div>
+  </footer>
 </main>
 <script>
 // ---- levels ----
@@ -401,7 +410,7 @@ document.addEventListener('visibilitychange',()=>{if(document.hidden&&(mode==='p
 let lastF=performance.now()/1000;
 function frame(){
   const pf=performance.now()/1000,dt=Math.min(.05,pf-lastF);lastF=pf;
-  if(cv.width!==Math.round(cv.getBoundingClientRect().width*DPR))fit();
+  {const r=cv.getBoundingClientRect();if(cv.width!==Math.round(r.width*DPR)||cv.height!==Math.round(r.height*DPR))fit()}
   let now=clock();
   if(mode==='count'&&now>=T(cur)-1e-3)mode='play';
   if(mode==='play'||mode==='count'){

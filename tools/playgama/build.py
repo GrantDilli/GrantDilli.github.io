@@ -16,21 +16,19 @@ HOOKS = {
     "flux-weave": ["function endRound(){"],
     "spindle-hop": ["function gameOver(){"],
 }
-# Games whose page can outgrow the screen; the glue scales them to fit. Vortex Bloom
-# already fills the screen exactly.
-FIT = {"snake", "topple", "twin-comets", "flux-weave", "spindle-hop"}
 FONTS = {"vortex-bloom": "unbounded-figtree"}  # every other game uses bungee-rubik
-STYLE = ('a[href^="../../"]{display:none!important}'
+# Every game page already fills the screen (games/fs.css). The portal runs its own
+# full-screen control, so the game's button is hidden.
+STYLE = ('a[href^="../../"],[data-fs]{display:none!important}'
          'body{-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}'
          'input,textarea{-webkit-user-select:text;user-select:text}')
-FIT_STYLE = ('html,body{height:100%;overflow:hidden}'
-             '#pg-fit{position:absolute;left:50%;top:0;width:100%;transform-origin:top center}')
 
 def build(site, out):
     out.mkdir(parents=True, exist_ok=True)
     for game, hooks in HOOKS.items():
         html = (site / "games" / game / "index.html").read_text()
         html = html.replace('href="../../style.css"', 'href="style.css"')
+        html = html.replace('href="../fs.css"', 'href="fs.css"').replace('src="../fs.js"', 'src="fs.js"')
         # Bundle fonts locally: the build may load nothing but the Bridge from outside.
         html = re.sub(r'<link rel="preconnect"[^>]*>\n?', "", html)
         html, n = re.subn(r'<link[^>]*fonts\.googleapis\.com/css2[^>]*>', '<link rel="stylesheet" href="fonts/fonts.css">', html)
@@ -43,10 +41,8 @@ def build(site, out):
             assert html.count(h) == 1, (game, h)
             call = "window.pgBreak&&pgBreak();"
             html = html.replace(h, h + call if h.endswith("{") else call + h)
-        style = STYLE + (FIT_STYLE if game in FIT else "")
-        head = (("<script>window.PG_FIT=true</script>\n" if game in FIT else "")
-                + f'<script src="{BRIDGE}"></script>\n<script src="pg-glue.js"></script>\n'
-                + f"<style>{style}</style>\n")
+        head = (f'<script src="{BRIDGE}"></script>\n<script src="pg-glue.js"></script>\n'
+                + f"<style>{STYLE}</style>\n")
         html, n = re.subn(r"<head>", "<head>\n" + head, html, count=1)
         assert n == 1, game
         stage = out / game
@@ -55,6 +51,10 @@ def build(site, out):
         (stage / "index.html").write_text(html)
         shutil.copy(site / "style.css", stage)
         shutil.copy(HERE / "pg-glue.js", stage)
+        if "fs.js" in html:
+            shutil.copy(site / "games" / "fs.js", stage)
+        if "fs.css" in html:
+            shutil.copy(site / "games" / "fs.css", stage)
         shutil.copy(HERE / "playgama-bridge-config.json", stage)
         fonts = stage / "fonts"
         fonts.mkdir()

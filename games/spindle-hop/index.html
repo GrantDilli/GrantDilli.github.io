@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no">
+<meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no,viewport-fit=cover">
 <title>Spindle Hop · Infinite Games</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bungee&family=Rubik:wght@400;500&display=swap">
 <link rel="stylesheet" href="../../style.css">
@@ -31,31 +31,42 @@
   .back{justify-self:start;color:var(--muted)}
   .small{font-size:.85rem;color:var(--muted);margin:0;max-width:60ch}
 </style>
+<link rel="stylesheet" href="../fs.css">
+<script src="../fs.js" defer></script>
 </head>
 <body>
-<main>
-  <a class="back" href="../../index.html">← All games</a>
-  <h1>Spindle Hop</h1>
-  <div class="bar"><span>Zone <b id="zone">1</b>: <b id="zname"></b></span><span>Distance <b id="dist">0</b> m</span><span>Best on <b id="skillName">Normal</b>: <b id="best">–</b></span></div>
-  <div class="stage" id="stage">
+<main class="fs">
+  <header class="top">
+    <a class="back" href="../../index.html">← All games</a>
+    <h1>Spindle Hop</h1>
+    <div class="bar"><span>Zone <b id="zone">1</b>: <b id="zname"></b></span><span>Distance <b id="dist">0</b> m</span><span>Best on <b id="skillName">Normal</b>: <b id="best">–</b></span></div>
+    <button class="fsbtn" data-fs aria-label="Full screen" hidden><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg></button>
+  </header>
+  <div class="stage fill" id="stage">
     <canvas id="c"></canvas>
     <div class="msg" id="msg"><h2 id="mt"></h2><p id="mp"></p><div class="stats" id="ms"></div><div class="row" id="mbtns"></div></div>
   </div>
-  <p class="tip" id="tip"></p>
-  <div class="row">
-    <button class="ghost" id="restart">Restart (R)</button>
-    <button class="ghost" id="pause">Pause (P)</button>
-    <button class="ghost" id="snd">Sound on (M)</button>
-  </div>
-  <div class="row"><span class="small">Difficulty</span><div class="row skills" id="skills"></div></div>
-  <p class="small">An endless run up a spiral tower. ← and → (or A and D) move between the three lanes, ↑, W or Space jumps, and holding ↓ or S ducks. Jump pink hurdles, gaps and rolling drums, duck blue beams, and dodge grey walls. Laser gates switch between low and high. Grab gems for points, and keep a clean streak going to raise your multiplier. On a touchscreen, swipe anywhere: left or right to change lane, up to jump, down to duck (hold to stay ducked). You can chain swipes without lifting your finger.</p>
+  <footer class="dock">
+    <p class="tip" id="tip"></p>
+    <div class="row">
+      <button class="ghost" id="restart">Restart (R)</button>
+      <button class="ghost" id="pause">Pause (P)</button>
+      <button class="ghost" id="snd">Sound on (M)</button>
+      <details class="more"><summary>Difficulty</summary><div class="panel"><button class="ghost close" aria-label="Close">✕</button>
+    <div class="row"><span class="small">Difficulty</span><div class="row skills" id="skills"></div></div>
+    <p class="small">An endless run up a spiral tower. ← and → (or A and D) move between the three lanes, ↑, W or Space jumps, and holding ↓ or S ducks. Jump pink hurdles, gaps and rolling drums, duck blue beams, and dodge grey walls. Laser gates switch between low and high. Grab gems for points, and keep a clean streak going to raise your multiplier. On a touchscreen, swipe anywhere: left or right to change lane, up to jump, down to duck (hold to stay ducked). You can chain swipes without lifting your finger.</p>
+      </div></details>
+    </div>
+  </footer>
 </main>
 <script>
 const $=id=>document.getElementById(id);
 // ---- world ----
 // The ramp is a helix around the tower. Distance s along it sets the angle (s/RM) and the
 // ramp height (s*PITCH); the three lanes are radii across the ramp.
-const W=960,H=600,CX=480,CY0=318,FOC=560,DCAM=640;
+const FOC=560,DCAM=640;
+// The view is 600 tall in landscape and 960 wide in portrait; the other side stretches to fill the screen.
+let W=960,H=600,CX=480,CY0=318;
 const R0=120,R1=272,RM=196,TURN=Math.PI*2*RM,RISE=210,PITCH=RISE/TURN,ZONE=3000;
 const LW=(R1-R0)/3,laneLo=j=>R0+LW*j,laneHi=j=>R0+LW*(j+1),laneR=j=>R0+LW*(j+.5);
 const STAND=68,DUCKH=32,G=3000,V0=900,HURDLE=[0,34],BEAM=[54,80],WALL=118,HEARTS=3;
@@ -151,7 +162,10 @@ setInterval(musicTick,30);
 
 // ---- state ----
 const cv=$('c'),cx=cv.getContext('2d');let dpr=1;
-function resize(){dpr=Math.min(2,window.devicePixelRatio||1);cv.width=W*dpr;cv.height=H*dpr}
+function resize(){const r=cv.getBoundingClientRect(),a=r.width>0&&r.height>0?r.width/r.height:1.6;
+  if(a>=1.6){H=600;W=Math.round(600*a)}else{W=960;H=Math.round(960/a)}CX=W/2;CY0=318+(H-600)/2;
+  dpr=r.width>0?Math.min(2.5,Math.max(.5,r.width*Math.min(2,window.devicePixelRatio||1)/W)):Math.min(2,window.devicePixelRatio||1);
+  cv.width=Math.round(W*dpr);cv.height=Math.round(H*dpr)}
 resize();addEventListener('resize',resize);
 let state='menu',clock=0,countT=0,zone=0,prevZone=0,zoneFade=1,obs=[],gaps=[],gems=[],rollers=[],nextRoller=0,fx=[],amb=[],lines=[];
 let R=rng(1),genS=0,rowId=0,objId=0,score=0,gemsGot=0,streak=0,mult=1,lastRow=-1,shake=0,flash=0,banner=null,cam={s:0,y:0},pl=null,nextHeart=4000;
@@ -323,7 +337,7 @@ function drawTower(time){
   cx.fillStyle=g;cx.fillRect(x0,0,hw*2,H);
   // panel seams turn with the camera, glowing bands mark each floor
   cx.strokeStyle='rgba(0,0,0,.22)';cx.lineWidth=2;for(let i=0;i<16;i++){const a=i*TAU/16;if(Math.cos(a-camA)<.05)continue;const[x]=P(a,R0,0);cx.beginPath();cx.moveTo(x,0);cx.lineTo(x,H);cx.stroke()}
-  for(let y=Math.floor((camY-400)/RISE)*RISE;y<camY+500;y+=RISE/2){const sy=CY0-(y+RISE*.42-camY)*kb,bt=themeOf(zoneOf(y/PITCH));
+  for(let y=Math.floor((camY-400-(H-600))/RISE)*RISE;y<camY+500+(H-600);y+=RISE/2){const sy=CY0-(y+RISE*.42-camY)*kb,bt=themeOf(zoneOf(y/PITCH));
     cx.fillStyle=hexA(bt.band,.12);cx.fillRect(x0,sy-6,hw*2,16);cx.fillStyle=hexA(bt.band,.55+.25*Math.sin(time*3+y));cx.fillRect(x0,sy,hw*2,4)}}
 function rampSeg(s0,s1){
   const a0=s0/RM,a1=s1/RM,y0=s0*PITCH,y1=s1*PITCH,da=(a0+a1)/2-camA,mid=(s0+s1)/2,open=[0,1,2].map(j=>!inGap(mid,j)),tw=themeOf(zoneOf(mid));
@@ -410,7 +424,7 @@ function draw(time){
   // the sky cross-fades as you cross into a new zone
   if(zoneFade<1){drawBg(themeOf(prevZone),time,false);cx.globalAlpha=zoneFade}drawBg(themeOf(zone),time,true);cx.globalAlpha=1;
   cx.save();if(shake>0)cx.translate((Math.random()-.5)*10*shake,(Math.random()-.5)*10*shake);
-  const items=[],lo=Math.max(0,cam.s-TURN*.55),hi=cam.s+TURN*1.25,step=16;
+  const items=[],ext=Math.max(0,H-600)/440,lo=Math.max(0,cam.s-TURN*(.55+ext)),hi=cam.s+TURN*(1.25+ext),step=16;
   for(let s=Math.floor(lo/step)*step;s<hi;s+=step)items.push(rampSeg(s,s+step));
   hazardItems(items,time);
   {const da=pl.s/RM-camA;items.push({d:DCAM-Math.cos(da)*laneR(pl.lr)-4,z:Math.cos(da),f:()=>drawRunner(pl,time)})}
@@ -454,7 +468,7 @@ addEventListener('keyup',e=>{const k=e.key.toLowerCase();if(k==='s'||k==='arrowd
 // touch: swipe anywhere on the screen. Left/right change lane, up jumps, down ducks (keep the
 // finger down to stay ducked). Swipes chain without lifting: each one starts where the last ended.
 const SWIPE=22,FLICK=10;let sw=null;
-const onUi=e=>e.target.closest&&e.target.closest('button,input,a,.skills');
+const onUi=e=>e.target.closest&&e.target.closest('button,input,a,summary,.skills,.panel');
 function swipe(dx,dy){if(Math.abs(dx)>Math.abs(dy))side(Math.sign(dx));else if(dy<0)press();else{input.slide=.45;input.duckTouch=true}}
 addEventListener('pointerdown',e=>{if(e.pointerType==='mouse'||onUi(e))return;audio();
   sw={id:e.pointerId,x:e.clientX,y:e.clientY,t:performance.now(),moved:false};if(state==='play'||state==='count')e.preventDefault()},{passive:false});

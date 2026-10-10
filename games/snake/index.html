@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no">
+<meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no,viewport-fit=cover">
 <title>Snake · Infinite Games</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bungee&family=Rubik:wght@400;500&display=swap">
 <link rel="stylesheet" href="../../style.css">
@@ -16,15 +16,22 @@
   .back{justify-self:start;color:var(--muted)}
   .hint{color:var(--muted);margin:0;font-size:.9rem}
 </style>
+<link rel="stylesheet" href="../fs.css">
+<script src="../fs.js" defer></script>
 </head>
 <body>
-<main>
-  <a class="back" href="../../index.html">← All games</a>
-  <h1>Snake</h1>
-  <div class="bar"><span>Score <b id="score">0</b></span><span>Best <b id="best">0</b></span></div>
-  <canvas id="c" width="420" height="420"></canvas>
-  <button id="start">Start</button>
-  <p class="hint">Arrow keys / WASD to steer, Space to pause. Swipe on phones.</p>
+<main class="fs">
+  <header class="top">
+    <a class="back" href="../../index.html">← All games</a>
+    <h1>Snake</h1>
+    <div class="bar"><span>Score <b id="score">0</b></span><span>Best <b id="best">0</b></span></div>
+    <button class="fsbtn" data-fs aria-label="Full screen" hidden><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg></button>
+  </header>
+  <div class="stage" style="--ar:1"><canvas id="c" width="420" height="420"></canvas></div>
+  <footer class="dock">
+    <button id="start">Start</button>
+    <p class="hint">Arrow keys / WASD to steer, Space to pause. Swipe on phones.</p>
+  </footer>
 </main>
 <script>
 const N=21,S=20,cv=document.getElementById('c'),ctx=cv.getContext('2d');

@@ -26,7 +26,8 @@ html{height:100%;box-sizing:border-box}
 *,*::before,*::after{box-sizing:inherit}
 body{height:100%;background:var(--bg);color:var(--ink);font-family:var(--f-body);-webkit-font-smoothing:antialiased;overflow:hidden}
 button{font:inherit;color:inherit}
-.app{height:100%;max-width:960px;margin:0 auto;display:grid;grid-template-rows:auto 1fr auto;gap:6px;padding-inline:16px;padding-block:12px}
+.app{height:100%;margin:0 auto;display:grid;grid-template-rows:auto 1fr auto;gap:6px;padding-inline:max(16px,env(safe-area-inset-left)) max(16px,env(safe-area-inset-right));padding-block:12px}
+.ib[hidden]{display:none}
 
 .top{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
 .brand{display:flex;align-items:center;gap:10px;font-family:var(--f-display);font-weight:500;font-size:15px;letter-spacing:.01em}
@@ -133,9 +134,11 @@ details[open] summary::after{content:"–"}
     <div class="chips" id="chips"><span class="hint" id="hint"></span></div>
     <button class="ib" id="mus" aria-label="Toggle music"></button>
     <button class="ib" id="snd" aria-label="Toggle sound effects"></button>
+    <button class="ib" data-fs aria-label="Full screen" hidden><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg></button>
     <button class="ib" id="pz" aria-label="Pause"><svg viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="5" width="4" height="14" rx="1.5"/><rect x="14" y="5" width="4" height="14" rx="1.5"/></svg></button>
   </footer>
 </div>
+<script src="../fs.js" defer></script>
 
 <script>
 (()=>{

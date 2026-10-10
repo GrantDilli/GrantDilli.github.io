@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no">
+<meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no,viewport-fit=cover">
 <title>Flux Weave · Infinite Games</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bungee&family=Rubik:wght@400;500&display=swap">
 <link rel="stylesheet" href="../../style.css">
@@ -42,25 +42,34 @@
   .back{justify-self:start;color:var(--muted)}
   .small{font-size:.85rem;color:var(--muted);margin:0;max-width:56ch}
 </style>
+<link rel="stylesheet" href="../fs.css">
+<script src="../fs.js" defer></script>
 </head>
 <body>
-<main>
-  <a class="back" href="../../index.html">← All games</a>
-  <h1>Flux Weave</h1>
-  <div class="bar"><span>System <b id="lvl">1</b>/5: <b id="lname"></b></span><span>Time <b id="time">60</b></span><span>Best on <b id="skillName">Normal</b>: <b id="best">–</b></span></div>
+<main class="fs">
+  <header class="top">
+    <a class="back" href="../../index.html">← All games</a>
+    <h1>Flux Weave</h1>
+    <div class="bar"><span>System <b id="lvl">1</b>/5: <b id="lname"></b></span><span>Time <b id="time">60</b></span><span>Best on <b id="skillName">Normal</b>: <b id="best">–</b></span></div>
+    <button class="fsbtn" data-fs aria-label="Full screen" hidden><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg></button>
+  </header>
   <div class="scores" id="scores"></div>
-  <div class="stage" id="stage">
+  <div class="stage" id="stage" style="--ar:1">
     <canvas id="c"></canvas>
     <div class="msg" id="msg"><h2 id="mt"></h2><p id="mp"></p><div class="stats" id="ms"></div><div class="row" id="mbtns"></div></div>
   </div>
-  <p class="tip" id="tip"></p>
-  <div class="row">
-    <button class="ghost" id="restart">Restart (R)</button>
-    <button class="ghost" id="pause">Pause (P)</button>
-    <button class="ghost" id="snd">Sound on (M)</button>
-  </div>
-  <div class="row"><span class="small">Rival skill</span><div class="row skills" id="skills"></div></div>
-  <p class="small">Click or tap a pipe to turn it clockwise, right-click to turn it back. Keys: arrows or WASD to move, Space to turn, X to turn back. A tile someone just turned is locked to everyone else for a moment.</p>
+  <footer class="dock">
+    <p class="tip" id="tip"></p>
+    <div class="row">
+      <button class="ghost" id="restart">Restart (R)</button>
+      <button class="ghost" id="pause">Pause (P)</button>
+      <button class="ghost" id="snd">Sound on (M)</button>
+      <details class="more"><summary>Rivals</summary><div class="panel"><button class="ghost close" aria-label="Close">✕</button>
+    <div class="row"><span class="small">Rival skill</span><div class="row skills" id="skills"></div></div>
+    <p class="small">Click or tap a pipe to turn it clockwise, right-click to turn it back. Keys: arrows or WASD to move, Space to turn, X to turn back. A tile someone just turned is locked to everyone else for a moment.</p>
+      </div></details>
+    </div>
+  </footer>
 </main>
 <script>
 const $=id=>document.getElementById(id);
