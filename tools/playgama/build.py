@@ -19,7 +19,7 @@ HOOKS = {
 FONTS = {"vortex-bloom": "unbounded-figtree"}  # every other game uses bungee-rubik
 # Every game page already fills the screen (games/fs.css). The portal runs its own
 # full-screen control, so the game's button is hidden.
-STYLE = ('a[href^="../../"],[data-fs]{display:none!important}'
+STYLE = ('[data-fs]{display:none!important}'
          'body{-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}'
          'input,textarea{-webkit-user-select:text;user-select:text}')
 
@@ -29,6 +29,12 @@ def build(site, out):
         html = (site / "games" / game / "index.html").read_text()
         html = html.replace('href="../../style.css"', 'href="style.css"')
         html = html.replace('href="../fs.css"', 'href="fs.css"').replace('src="../fs.js"', 'src="fs.js"')
+        # Each build stands alone: no link back to the site and no site name.
+        html, n = re.subn(r'[ \t]*<a class="(?:back|home)" href="\.\./\.\./index\.html"[^>]*>[^<]*</a>\n?', "", html)
+        assert n == 1, game
+        html, n = re.subn(r"(<title>[^<]*?) · Infinite Games</title>", r"\1</title>", html)
+        assert n == 1, game
+        assert "../" not in html and "Infinite Games" not in html, game
         # Bundle fonts locally: the build may load nothing but the Bridge from outside.
         html = re.sub(r'<link rel="preconnect"[^>]*>\n?', "", html)
         html, n = re.subn(r'<link[^>]*fonts\.googleapis\.com/css2[^>]*>', '<link rel="stylesheet" href="fonts/fonts.css">', html)
