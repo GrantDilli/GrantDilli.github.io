@@ -4,7 +4,7 @@ Usage: python3 tools/playgama/build.py <site_root> <out_dir>
 """
 import pathlib, re, shutil, sys, zipfile
 
-BRIDGE = "https://bridge.playgama.com/v1/stable/playgama-bridge.js"
+BRIDGE = "https://bridge.playgama.com/v2/stable/playgama-bridge.js"
 HERE = pathlib.Path(__file__).parent
 # Where each game reaches a natural break, so an interstitial can show there.
 # A hook ending in "{" gets the call after it; any other hook gets the call before it.

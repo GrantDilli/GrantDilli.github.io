@@ -5,6 +5,7 @@
 (function(){
   var paused=false,muted=false,hidden=false,ctxs=[],heldFrames=[],heldTimers=[],started=false;
   var SAVE_KEY='save';
+  // Bridge v2 parses stored JSON by default, so a loaded save may arrive as an object or a string.
 
   // Saves go through Bridge storage. Games keep calling localStorage; this stand-in keeps an
   // in-memory copy and writes every key as one batched Bridge save.
@@ -71,7 +72,7 @@
     });
     if(bridge.advertisement.interstitialState==='opened')setPaused(true);
     bridge.storage.get([SAVE_KEY]).then(function(v){
-      try{var raw=Array.isArray(v)?v[0]:v,d=JSON.parse(raw||'null');if(d&&typeof d==='object')data=d}catch(e){}
+      try{var raw=Array.isArray(v)?v[0]:v,d=typeof raw==='string'?JSON.parse(raw):raw;if(d&&typeof d==='object')data=d}catch(e){}
     }).catch(function(){}).then(runGame);
   }
   function boot(){
