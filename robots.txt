@@ -1,0 +1,3 @@
+User-agent: *
+Allow: /
+Sitemap: https://grantdilli.github.io/sitemap.xml

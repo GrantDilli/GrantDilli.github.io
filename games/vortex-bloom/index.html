@@ -1,7 +1,8 @@
-<!doctype html><html lang="en"><head><meta charset="utf-8"><title>Vortex Bloom · Infinite Games</title><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#faf9f5;color:#141413}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Unbounded:wght@400;500;600&family=Figtree:wght@400;500;600;700&display=swap" rel="stylesheet">
+<!doctype html><html lang="en"><head>
+<script src="../site-glue.js" data-game="vortex-bloom"></script>
+<style>[data-fs]{display:none!important}body{-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}input,textarea{-webkit-user-select:text;user-select:text}</style>
+<meta charset="utf-8"><title>Vortex Bloom: circular brick breaker | Infinite Games</title><meta name="description" content="Swing the paddle around the ring and break the spinning bricks. Plan your angles and clear every level, free in your browser."><link rel="canonical" href="https://grantdilli.github.io/games/vortex-bloom/"><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#faf9f5;color:#141413}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<link rel="stylesheet" href="fonts/fonts.css">
 <style>
 /* Layout: one-screen arcade app. Slim stat bar on top, a round "bowl" arena centered, power-up chips and controls below. Soft pastel ceramics on fog. */
 :root{
@@ -116,7 +117,7 @@ details[open] summary::after{content:"–"}
 
 <div class="app">
   <header class="top">
-    <div class="brand"><a class="home" href="../../index.html" aria-label="All games">←</a><i class="mark" aria-hidden="true"></i><span class="name">Vortex Bloom</span></div>
+    <div class="brand"><i class="mark" aria-hidden="true"></i><span class="name">Vortex Bloom</span></div>
     <div class="stats">
       <div class="stat"><small>Level</small><b id="lvl">1</b></div>
       <div class="stat"><small>Score</small><b id="score">0</b></div>
@@ -138,9 +139,9 @@ details[open] summary::after{content:"–"}
     <button class="ib" id="pz" aria-label="Pause"><svg viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="5" width="4" height="14" rx="1.5"/><rect x="14" y="5" width="4" height="14" rx="1.5"/></svg></button>
   </footer>
 </div>
-<script src="../fs.js" defer></script>
+<script src="fs.js" defer></script>
 
-<script>
+<script type="text/plain" data-pg-game>
 (()=>{
 const TAU=Math.PI*2, R=300, PR=282, PT=11, BR=6.5, INNER=30, RT=24, RG=5;
 const $=id=>document.getElementById(id);
@@ -498,14 +499,14 @@ function loseLife(){
   toast(S.lives===1?'Last ball':S.lives+' balls left');serve();
 }
 const WARP=2;
-function levelClear(){
+function levelClear(){window.pgBreak&&pgBreak();
   S.mode='warp';S.warpT=0;S.warpLoaded=false;SND.clear();Music.warp(WARP);
   const secs=S.levelTime,bonus=Math.max(0,Math.round((100-secs)*30*(1+S.level*.1)/10)*10);
   S.score+=bonus;S.fx={};S.caps=[];S.shots=[];S.balls=[];buildChips();
   for(const b of S.bricks)if(b.alive){b.alive=false;b.gone=0}
   toast(`Level ${S.level} clear`+(bonus?` · +${fmt(bonus)} speed bonus`:''));
 }
-function gameOver(){
+function gameOver(){window.pgBreak&&pgBreak();
   S.mode='over';Music.muffle(true);const best=store.get('vb-best',0),isBest=S.score>best;if(isBest)store.set('vb-best',S.score);
   showOverlay(`<div class="card"><p class="eyebrow">Out of balls</p><h2>Game over</h2>
     <dl class="tally"><div><dt>Score</dt><dd>${fmt(S.score)} ${isBest?'<span class="tag">New best</span>':''}</dd></div><div><dt>Reached</dt><dd>Level ${S.level}</dd></div><div><dt>Best</dt><dd>${fmt(Math.max(best,S.score))}</dd></div></dl>

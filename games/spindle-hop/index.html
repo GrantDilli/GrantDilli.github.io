@@ -1,11 +1,14 @@
 <!doctype html>
 <html lang="en">
 <head>
+<script src="../site-glue.js" data-game="spindle-hop"></script>
+<style>[data-fs]{display:none!important}body{-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}input,textarea{-webkit-user-select:text;user-select:text}</style>
+
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no,viewport-fit=cover">
-<title>Spindle Hop · Infinite Games</title>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bungee&family=Rubik:wght@400;500&display=swap">
-<link rel="stylesheet" href="../../style.css">
+<title>Spindle Hop: spiral tower runner | Infinite Games</title><meta name="description" content="Race up a spiral tower: switch lanes, jump and duck, and grab gems as it speeds up. Free in your browser."><link rel="canonical" href="https://grantdilli.github.io/games/spindle-hop/">
+<link rel="stylesheet" href="fonts/fonts.css">
+<link rel="stylesheet" href="style.css">
 <style>
   main{max-width:820px;margin:0 auto;padding-block:24px 40px;display:grid;gap:12px;justify-items:center;text-align:center}
   h1{margin:0;font-family:var(--display);font-weight:400;color:var(--lime);font-size:2.4rem}
@@ -31,13 +34,12 @@
   .back{justify-self:start;color:var(--muted)}
   .small{font-size:.85rem;color:var(--muted);margin:0;max-width:60ch}
 </style>
-<link rel="stylesheet" href="../fs.css">
-<script src="../fs.js" defer></script>
+<link rel="stylesheet" href="fs.css">
+<script src="fs.js" defer></script>
 </head>
 <body>
 <main class="fs">
   <header class="top">
-    <a class="back" href="../../index.html">← All games</a>
     <h1>Spindle Hop</h1>
     <div class="bar"><span>Zone <b id="zone">1</b>: <b id="zname"></b></span><span>Distance <b id="dist">0</b> m</span><span>Best on <b id="skillName">Normal</b>: <b id="best">–</b></span></div>
     <button class="fsbtn" data-fs aria-label="Full screen" hidden><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg></button>
@@ -59,7 +61,7 @@
     </div>
   </footer>
 </main>
-<script>
+<script type="text/plain" data-pg-game>
 const $=id=>document.getElementById(id);
 // ---- world ----
 // The ramp is a helix around the tower. Distance s along it sets the angle (s/RM) and the
@@ -249,7 +251,7 @@ function dust(q,n){const[x,y]=P(q.s/RM,laneR(q.lr),q.s*PITCH);for(let k=0;k<n;k+
 function setup(){R=rng((Math.random()*1e9)|0);pl=newRunner();obs=[];gaps=[];gems=[];rollers=[];fx=[];genS=420;rowId=0;objId=0;lastRow=-1;nextHeart=4000;
   score=0;gemsGot=0;streak=0;mult=1;clock=0;zone=0;prevZone=0;zoneFade=1;nextRoller=3;banner=null;cam.s=0;cam.y=0;fillTrack();initAmb()}
 function startRun(){setup();state='count';document.body.classList.add('playing');countT=3.2;hideMsg();mus.on=true;audio();updateHud()}
-function gameOver(){state='over';document.body.classList.remove('playing');mus.on=false;const total=Math.floor(score),rec=total>best;
+function gameOver(){window.pgBreak&&pgBreak();state='over';document.body.classList.remove('playing');mus.on=false;const total=Math.floor(score),rec=total>best;
   if(rec){best=total;try{localStorage.setItem('spindleRun_'+skill,best)}catch(e){}loadBest()}
   setTimeout(()=>sfx.over(rec),300);
   setTimeout(()=>{if(state!=='over')return;

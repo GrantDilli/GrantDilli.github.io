@@ -1,11 +1,14 @@
 <!doctype html>
 <html lang="en">
 <head>
+<script src="../site-glue.js" data-game="snake"></script>
+<style>[data-fs]{display:none!important}body{-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}input,textarea{-webkit-user-select:text;user-select:text}</style>
+
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no,viewport-fit=cover">
-<title>Snake · Infinite Games</title>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bungee&family=Rubik:wght@400;500&display=swap">
-<link rel="stylesheet" href="../../style.css">
+<title>Snake: classic snake | Infinite Games</title><meta name="description" content="Eat, grow and don&#x27;t bite your tail. The classic, free in your browser."><link rel="canonical" href="https://grantdilli.github.io/games/snake/">
+<link rel="stylesheet" href="fonts/fonts.css">
+<link rel="stylesheet" href="style.css">
 <style>
   main{max-width:420px;margin:0 auto;padding-block:24px 40px;display:grid;gap:12px;justify-items:center;text-align:center}
   h1{margin:0;font-family:var(--display);font-weight:400;color:var(--lime);font-size:2.4rem}
@@ -16,13 +19,12 @@
   .back{justify-self:start;color:var(--muted)}
   .hint{color:var(--muted);margin:0;font-size:.9rem}
 </style>
-<link rel="stylesheet" href="../fs.css">
-<script src="../fs.js" defer></script>
+<link rel="stylesheet" href="fs.css">
+<script src="fs.js" defer></script>
 </head>
 <body>
 <main class="fs">
   <header class="top">
-    <a class="back" href="../../index.html">← All games</a>
     <h1>Snake</h1>
     <div class="bar"><span>Score <b id="score">0</b></span><span>Best <b id="best">0</b></span></div>
     <button class="fsbtn" data-fs aria-label="Full screen" hidden><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg></button>
@@ -33,7 +35,7 @@
     <p class="hint">Arrow keys / WASD to steer, Space to pause. Swipe on phones.</p>
   </footer>
 </main>
-<script>
+<script type="text/plain" data-pg-game>
 const N=21,S=20,cv=document.getElementById('c'),ctx=cv.getContext('2d');
 const scoreEl=document.getElementById('score'),bestEl=document.getElementById('best'),btn=document.getElementById('start');
 let best=0;try{best=+localStorage.getItem('snakeBest')||0}catch(e){}
@@ -51,7 +53,7 @@ function tick(){
   if(h.x===food.x&&h.y===food.y){score++;scoreEl.textContent=score;placeFood()}else snake.pop();
   draw();timer=setTimeout(tick,speed());
 }
-function over(){alive=false;if(score>best){best=score;bestEl.textContent=best;try{localStorage.setItem('snakeBest',best)}catch(e){}}draw();
+function over(){window.pgBreak&&pgBreak();alive=false;if(score>best){best=score;bestEl.textContent=best;try{localStorage.setItem('snakeBest',best)}catch(e){}}draw();
   ctx.fillStyle='rgba(0,0,0,.6)';ctx.fillRect(0,0,420,420);ctx.fillStyle='#fff';ctx.textAlign='center';
   ctx.font='bold 32px system-ui';ctx.fillText('Game over',210,200);ctx.font='18px system-ui';ctx.fillText('Score '+score,210,232);btn.textContent='Play again'}
 function draw(){

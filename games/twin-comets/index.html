@@ -1,11 +1,14 @@
 <!doctype html>
 <html lang="en">
 <head>
+<script src="../site-glue.js" data-game="twin-comets"></script>
+<style>[data-fs]{display:none!important}body{-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}input,textarea{-webkit-user-select:text;user-select:text}</style>
+
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no,viewport-fit=cover">
-<title>Twin Comets · Infinite Games</title>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bungee&family=Rubik:wght@400;500&display=swap">
-<link rel="stylesheet" href="../../style.css">
+<title>Twin Comets: one-tap rhythm game | Infinite Games</title><meta name="description" content="Two comets orbit each other. Tap on the beat to swing along the path. A one-button rhythm game, free in your browser."><link rel="canonical" href="https://grantdilli.github.io/games/twin-comets/">
+<link rel="stylesheet" href="fonts/fonts.css">
+<link rel="stylesheet" href="style.css">
 <style>
   main{max-width:760px;margin:0 auto;padding-block:24px 40px;display:grid;gap:12px;justify-items:center;text-align:center}
   h1{margin:0;font-family:var(--display);font-weight:400;color:var(--lime);font-size:2.4rem}
@@ -32,13 +35,12 @@
   .off{color:var(--muted);font-variant-numeric:tabular-nums;min-width:9ch}
   .small{font-size:.85rem;color:var(--muted);margin:0}
 </style>
-<link rel="stylesheet" href="../fs.css">
-<script src="../fs.js" defer></script>
+<link rel="stylesheet" href="fs.css">
+<script src="fs.js" defer></script>
 </head>
 <body>
 <main class="fs">
   <header class="top">
-    <a class="back" href="../../index.html">← All games</a>
     <h1>Twin Comets</h1>
     <div class="bar"><span>Level <b id="lvl">1</b>: <b id="lname"></b></span><span>Accuracy <b id="acc">–</b></span><span>Best <b id="best">–</b></span></div>
     <button class="fsbtn" data-fs aria-label="Full screen" hidden><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg></button>
@@ -60,7 +62,7 @@
     </div>
   </footer>
 </main>
-<script>
+<script type="text/plain" data-pg-game>
 // ---- levels ----
 // Rhythm notation: each token is the gap between two tiles. Digits are sixteenth notes
 // (4 = one beat), T = two-thirds of a beat, t = one third. '>' doubles the comets' spin
@@ -342,7 +344,7 @@ function hit(i,err,now){
   ui();
 }
 function pop(i,text,col,size=1){pops.push({x:tiles[i].x,y:tiles[i].y,text,col,t:performance.now()/1000,size})}
-function fail(now,why='late'){
+function fail(now,why='late'){window.pgBreak&&pgBreak();
   mode='fail';failWhy=why;failAt=performance.now()/1000;sfx.fail();stopMusic();
   shake=1;flashA=.45;flashC='#ff3b5c';combo=0;
   if(tiles[cur+1])pop(cur+1,why==='early'?'Too early!':why==='pause'?'Paused':'Too late!','#ff5c6e',1.15);
@@ -358,7 +360,7 @@ function fail(now,why='late'){
 function accuracy(upto=cur){
   let s=0,n=0;for(let i=1;i<=upto;i++){if(judge[i]==null)continue;s+=[100,80,55][judge[i]];n++;n+=early[i]||0}
   return n?s/n:null}
-function win(){
+function win(){window.pgBreak&&pgBreak();
   mode='win';endAt=performance.now()/1000;sfx.win(L.root);flashA=.35;flashC='#ffffff';
   {const t=tiles[tiles.length-1];for(let j=0;j<60;j++){const an=Math.random()*TAU,sp=1+Math.random()*3.5;parts.push({x:t.x,y:t.y,vx:Math.cos(an)*sp,vy:Math.sin(an)*sp,life:.8+Math.random()*.8,t:0,c:[theme.a,theme.b,'#ffffff'][j%3]})}}
   const acc=accuracy(),best=save.best[li];

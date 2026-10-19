@@ -1,0 +1,28 @@
+/* Layout: single-column arcade cabinet; header marquee, then a wrapping shelf of game tiles. One dark look, by choice. */
+:root{
+  --bg:#12101c; --panel:#1d1a2e; --line:#343050; --text:#f1eefc; --muted:#a39fbe;
+  --lime:#c6f432; --pink:#ff5c8a;
+  --display:"Bungee",Impact,"Arial Black",sans-serif;
+  --body:"Rubik",system-ui,-apple-system,"Segoe UI",sans-serif;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+html,body{background:var(--bg);color:var(--text)}
+body{margin:0;font-family:var(--body);font-size:16px;line-height:1.5;padding-inline:16px}
+a{color:inherit}
+a:focus-visible,button:focus-visible{outline:3px solid var(--lime);outline-offset:3px}
+.wrap{max-width:960px;margin:0 auto;padding-block:40px 48px;display:grid;gap:32px}
+header{display:grid;gap:6px}
+header h1{margin:0;font-family:var(--display);font-weight:400;font-size:clamp(2.2rem,8vw,4rem);line-height:1;color:var(--lime);text-wrap:balance;letter-spacing:.01em}
+header h1 span{color:var(--pink)}
+header p{margin:0;color:var(--muted);max-width:52ch}
+.label{font-size:.75rem;text-transform:uppercase;letter-spacing:.14em;color:var(--muted)}
+.shelf{display:grid;align-items:start;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:16px}
+.tile{display:grid;gap:10px;align-content:start;background:var(--panel);border:2px solid var(--line);border-radius:6px;padding:16px;text-decoration:none;transition:transform .15s,border-color .15s}
+.tile:hover{transform:translateY(-3px);border-color:var(--lime)}
+.tile h2{margin:0;font-family:var(--display);font-weight:400;font-size:1.4rem}
+.tile p{margin:0;color:var(--muted);font-size:.95rem}
+.tile.empty{border-style:dashed;background:transparent;color:var(--muted)}
+.thumb{aspect-ratio:16/9;max-width:100%;background:var(--bg);border-radius:4px;display:block;width:100%}
+footer{color:var(--muted);font-size:.85rem}
+@media (prefers-reduced-motion:reduce){.tile{transition:none}.tile:hover{transform:none}}

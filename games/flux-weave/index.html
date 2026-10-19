@@ -1,11 +1,14 @@
 <!doctype html>
 <html lang="en">
 <head>
+<script src="../site-glue.js" data-game="flux-weave"></script>
+<style>[data-fs]{display:none!important}body{-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}input,textarea{-webkit-user-select:text;user-select:text}</style>
+
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no,viewport-fit=cover">
-<title>Flux Weave · Infinite Games</title>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bungee&family=Rubik:wght@400;500&display=swap">
-<link rel="stylesheet" href="../../style.css">
+<title>Flux Weave: pipe routing puzzle race | Infinite Games</title><meta name="description" content="Turn pipes to route your flux into the cores before three rivals cut you off. A fast logic race, free in your browser."><link rel="canonical" href="https://grantdilli.github.io/games/flux-weave/">
+<link rel="stylesheet" href="fonts/fonts.css">
+<link rel="stylesheet" href="style.css">
 <style>
   main{max-width:640px;margin:0 auto;padding-block:24px 40px;display:grid;gap:12px;justify-items:center;text-align:center}
   h1{margin:0;font-family:var(--display);font-weight:400;color:var(--lime);font-size:2.4rem}
@@ -42,13 +45,12 @@
   .back{justify-self:start;color:var(--muted)}
   .small{font-size:.85rem;color:var(--muted);margin:0;max-width:56ch}
 </style>
-<link rel="stylesheet" href="../fs.css">
-<script src="../fs.js" defer></script>
+<link rel="stylesheet" href="fs.css">
+<script src="fs.js" defer></script>
 </head>
 <body>
 <main class="fs">
   <header class="top">
-    <a class="back" href="../../index.html">← All games</a>
     <h1>Flux Weave</h1>
     <div class="bar"><span>System <b id="lvl">1</b>/5: <b id="lname"></b></span><span>Time <b id="time">60</b></span><span>Best on <b id="skillName">Normal</b>: <b id="best">–</b></span></div>
     <button class="fsbtn" data-fs aria-label="Full screen" hidden><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg></button>
@@ -71,7 +73,7 @@
     </div>
   </footer>
 </main>
-<script>
+<script type="text/plain" data-pg-game>
 const $=id=>document.getElementById(id);
 // ---- board geometry ----
 // Bits of a pipe mask: 1 up, 2 right, 4 down, 8 left. Turning clockwise shifts each bit left.
@@ -266,7 +268,7 @@ function startRound(){
   state='count';countT=3.2;lastCount=4;hideMsg();mus.on=true;audio();buildChips();
 }
 const SRC_POS=[[0,0],[8,0],[8,8],[0,8]];
-function endRound(){
+function endRound(){window.pgBreak&&pgBreak();
   state='end';mus.on=false;
   const order=[0,1,2,3].sort((a,b)=>scores[b]-scores[a]||(a-b));const award=[3,2,1,0];
   order.forEach((p,k)=>pts[p]+=award[k]);
