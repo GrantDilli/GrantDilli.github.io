@@ -1,14 +1,16 @@
-/* Soft, bright, rounded look: pastel sky page, white pill chips, candy buttons with a pressed-down shadow. */
+/* Neon retro look: dark ground, flat neon colors, sharp corners, hard offset shadows, scanlines. */
 :root{
-  --bg:#eaf5ff; --panel:#ffffff; --line:#dfe3f7; --text:#2d2a55; --muted:#6f6c99;
-  --accent:#ff5fa2; --accent-dk:#d93f82; --accent2:#7b5cff; --sun:#ffc93c; --sun-dk:#e0a516; --ghost-dk:#cfd4ef;
-  --display:"Fredoka","Nunito",system-ui,sans-serif;
-  --body:"Nunito",system-ui,-apple-system,"Segoe UI",sans-serif;
-  color-scheme:light;
+  --bg:#0b0b1a; --panel:#14142c; --line:#2e2e5c; --text:#f2f2ff; --muted:#8d8dbd;
+  --pink:#ff2bd6; --cyan:#00e5ff; --yellow:#ffe14d;
+  --accent:var(--pink); --accent-dk:var(--cyan); --accent2:var(--cyan); --sun:var(--yellow); --sun-dk:var(--pink); --ghost-dk:var(--line);
+  --display:"Chakra Petch",system-ui,sans-serif;
+  --body:"Chakra Petch",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --mono:"Space Mono",ui-monospace,monospace;
+  color-scheme:dark;
 }
 *{box-sizing:border-box}
 html,body{background:var(--bg);color:var(--text)}
-body{background:linear-gradient(180deg,#dcf0ff 0%,#f4ecff 55%,#ffe9f4 100%) fixed}
+body::after{content:"";position:fixed;inset:0;pointer-events:none;z-index:50;background:repeating-linear-gradient(0deg,rgba(0,0,0,.18) 0 1px,transparent 1px 3px)}
 body{margin:0;font-family:var(--body);font-size:16px;line-height:1.5;padding-inline:16px}
 a{color:inherit}
 a:focus-visible,button:focus-visible{outline:3px solid var(--accent2);outline-offset:3px}

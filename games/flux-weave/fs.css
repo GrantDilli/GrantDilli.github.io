@@ -32,3 +32,23 @@ main.fs{max-width:none;height:100vh;height:100dvh;margin:0;display:flex;flex-dir
 .fs .fsbtn[hidden]{display:none}
 /* short landscape screens (phones on their side): squeeze the score chips onto one line each */
 @media (max-height:520px) and (min-aspect-ratio:5/4){.fs .scores .chip{display:flex;gap:8px;align-items:center;justify-content:center;padding:2px 6px}.fs .scores .chip .k{display:none}.fs .scores .chip .s{font-size:1rem}.fs .top h1{font-size:1.1rem}}
+
+/* ---- Neon retro skin (2026-10-19): sharp corners, hard offset shadows, glitch titles, scanlines. ---- */
+body::after{content:"";position:fixed;inset:0;pointer-events:none;z-index:50;background:repeating-linear-gradient(0deg,rgba(0,0,0,.18) 0 1px,transparent 1px 3px)}
+h1{font-weight:700!important;text-transform:uppercase;letter-spacing:.03em;color:var(--text)!important;text-shadow:-2px 0 var(--lime),2px 0 var(--pink)}
+.bar{font-family:var(--mono);font-size:.82rem;text-transform:uppercase;letter-spacing:.04em}
+.bar b{color:var(--pink);font-weight:700}
+button{border-radius:3px!important;font-weight:700!important;text-transform:uppercase;letter-spacing:.06em;box-shadow:4px 4px 0 var(--pink);transition:transform .06s,box-shadow .06s}
+button:active:not(:disabled){transform:translate(3px,3px);box-shadow:1px 1px 0 var(--pink)}
+button.ghost{box-shadow:none}
+.skills button.cur,.levels button.cur{box-shadow:4px 4px 0 var(--lime)}
+canvas{border-radius:0!important;border:2px solid var(--line)!important;box-shadow:8px 8px 0 rgba(255,43,214,.55)}
+.msg{border-radius:0!important;background:rgba(8,8,22,.8)!important}
+.msg h2{font-weight:700!important;text-transform:uppercase;color:var(--text)!important;text-shadow:-2px 0 var(--lime),2px 0 var(--pink);line-height:1.05}
+.msg p,.small,.hint{font-family:var(--mono);font-size:.85rem}
+.chip{border-radius:3px!important}
+.chip .s{font-family:var(--mono);font-weight:700}
+.tip{font-weight:500}
+.more>summary,.fs .fsbtn{border-radius:3px!important;box-shadow:none!important;border:2px solid var(--line)!important;text-transform:uppercase;font-weight:700!important}
+.more[open]>summary{background:var(--pink)!important;color:var(--bg)!important}
+.more .panel{border-radius:3px!important;border:2px solid var(--line)!important;box-shadow:8px 8px 0 rgba(255,43,214,.85)!important}

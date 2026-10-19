@@ -1,9 +1,10 @@
-/* Layout: single-column arcade cabinet; header marquee, then a wrapping shelf of game tiles. One dark look, by choice. */
+/* Neon retro: dark ground, flat neon colors, sharp edges. --lime is the main action colour, --pink the selected one (names kept from the old arcade skin). */
 :root{
-  --bg:#12101c; --panel:#1d1a2e; --line:#343050; --text:#f1eefc; --muted:#a39fbe;
-  --lime:#c6f432; --pink:#ff5c8a;
-  --display:"Bungee",Impact,"Arial Black",sans-serif;
-  --body:"Rubik",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --bg:#0b0b1a; --panel:#14142c; --line:#2e2e5c; --text:#f2f2ff; --muted:#8d8dbd;
+  --lime:#ff2bd6; --pink:#00e5ff;
+  --display:"Chakra Petch",system-ui,sans-serif;
+  --body:"Chakra Petch",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --mono:"Space Mono",ui-monospace,monospace;
   color-scheme:dark;
 }
 *{box-sizing:border-box}

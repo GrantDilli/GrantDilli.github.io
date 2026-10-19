@@ -15,6 +15,7 @@
 
   // Progress per game, from each game's own save format.
   var eye=rd('eyeSave',{}),top=rd('toppleSave',{}),snug=rd('snugSave',{}),comets=rd('cometsSave',{});
+  var vb=rd('vb-prog',{}),vbStars=Object.keys(vb.stars||{}).reduce(function(a,k){return a+(+vb.stars[k]||0)},0);
   var toppleDone=Object.keys(top.best||{}).length,snugDone=snug.lvl||0;
   var G={
     'eyeball-it':{pts:(eye.rounds||0)*20+(eye.best||0),skills:['perception'],
@@ -22,7 +23,7 @@
     'topple':{pts:toppleDone*15,skills:['spatial','logic'],line:toppleDone?'Level '+Math.min(56,toppleDone+1)+' of 56':null},
     'snug-pack':{pts:snugDone*15,skills:['spatial'],line:snugDone?'Trip '+(snugDone+1):null},
     'flux-weave':{pts:sessions('flux-weave')*12,skills:['logic','reflex'],line:num('fluxBest')?'Best '+num('fluxBest'):null},
-    'vortex-bloom':{pts:sessions('vortex-bloom')*12,skills:['reflex','spatial'],line:num('vb-best')?'Best '+num('vb-best'):null},
+    'vortex-bloom':{pts:sessions('vortex-bloom')*6+vbStars*5,skills:['reflex','spatial'],line:vb.lvl>1?'Level '+vb.lvl+' · '+vbStars+' stars':null},
     'twin-comets':{pts:sessions('twin-comets')*6,skills:['reflex'],line:Object.keys(comets.done||{}).length?Object.keys(comets.done).length+' levels cleared':null},
     'spindle-hop':{pts:sessions('spindle-hop')*6,skills:['reflex'],line:num('spindleRun_1')?'Best '+num('spindleRun_1'):null},
     'snake':{pts:sessions('snake')*6,skills:['reflex'],line:num('snakeBest')?'Best '+num('snakeBest'):null}
