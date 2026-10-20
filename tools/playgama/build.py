@@ -14,7 +14,6 @@ HOOKS = {
     "topple": ["const k=li;if(!save.best[k]"],  # level cleared, not fall/spawn
     "twin-comets": ["function fail(now,why='late'){", "function win(){"],
     "flux-weave": ["function endRound(){"],
-    "spindle-hop": ["function gameOver(){"],
 }
 FONTS = {"vortex-bloom": "unbounded-figtree"}  # every other game uses bungee-rubik
 # Every game page already fills the screen (games/fs.css). The portal runs its own
